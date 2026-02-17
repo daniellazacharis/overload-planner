@@ -8,6 +8,40 @@ st.set_page_config(page_title="Weekly Overload Planner", page_icon="🗓️", la
 DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
 DIFFICULTY_ORDER = {"Low": 1, "Med": 2, "High": 3}
 
+# ---------- CALM UI THEME ----------
+st.markdown("""
+<style>
+
+.day-card {
+    border-radius: 18px;
+    padding: 18px 18px 10px 18px;
+    margin-bottom: 18px;
+    box-shadow: 0px 4px 14px rgba(0,0,0,0.06);
+    border: 1px solid rgba(0,0,0,0.05);
+}
+
+/* Workload colors */
+.light { background-color: #E8F5EC; }        /* soft green */
+.moderate { background-color: #E7F1FA; }     /* calm blue */
+.heavy { background-color: #FFF4E5; }        /* soft amber */
+.overloaded { background-color: #FDECEC; }   /* gentle red */
+.rest { background-color: #F1ECFF; }         /* lavender */
+
+.day-title {
+    font-weight: 600;
+    font-size: 20px;
+    margin-bottom: 4px;
+}
+
+.day-sub {
+    font-size: 13px;
+    opacity: 0.75;
+    margin-bottom: 10px;
+}
+
+</style>
+""", unsafe_allow_html=True)
+
 # ---------- Helpers ----------
 def init_state():
     if "tasks" not in st.session_state:
@@ -133,6 +167,22 @@ def analyze_day(day, items):
 
     return "NORMAL", planned, available, 0
 
+def workload_classification(state, planned, available):
+    if state == "REST":
+        return "rest", "💪 Rest Day"
+
+    if state == "OVERLOAD":
+        return "overloaded", f"⚠️ Overloaded by {round(planned-available,2)}h"
+
+    ratio = planned / available if available > 0 else 0
+
+    if ratio <= 0.4:
+        return "light", "Light Workload"
+    elif ratio <= 0.75:
+        return "moderate", "Moderate Workload"
+    else:
+        return "heavy", "Heavy Workload"
+
 # ---------- App ----------
 init_state()
 
@@ -223,31 +273,32 @@ if page == "Planner":
             generate_placeholder_schedule()
             st.success("Week Generated!")
 
-        if st.session_state.generated:
-            for d in DAYS:
-                items = st.session_state.schedule.get(d, [])
-        
-                state, planned, available, overload = analyze_day(d, items)
-        
-                st.markdown(f"### {d}")
-        
-                # -------- REST DAY --------
-                if state == "REST":
-                    st.markdown("💪 **Rest Day**")
-                    st.caption("Recovery improves productivity")
-                    st.divider()
-                    continue
-        
-                # -------- OVERLOAD --------
-                if state == "OVERLOAD":
-                    st.markdown(f"⚠️ **Overloaded — Over by {overload} hours**")
-                    st.caption(f"Planned: {planned}h / Available: {available}h")
-        
-                # -------- NORMAL DAY --------
-                else:
-                    st.markdown(f"**{status_label(planned)} Day**")
-                    st.caption(f"{planned}h planned out of {available}h available")
-        
+            if st.session_state.generated:
+    
+        for d in DAYS:
+            items = st.session_state.schedule.get(d, [])
+    
+            state, planned, available, overload = analyze_day(d, items)
+            css_class, label = workload_classification(state, planned, available)
+    
+            # Card Start
+            st.markdown(f"""
+            <div class="day-card {css_class}">
+                <div class="day-title">{d}</div>
+                <div class="day-sub">{label} • {planned}h planned / {available}h available</div>
+            """, unsafe_allow_html=True)
+    
+            # Tasks
+            if state == "REST":
+                st.markdown("*No work scheduled — recovery day*", unsafe_allow_html=True)
+    
+            else:
+                for it in items:
+                    st.markdown(f"- **{it['task']}** ({it['hours']}h) · {it['difficulty']}")
+    
+            # Close Card
+            st.markdown("</div>", unsafe_allow_html=True)
+
                 # Show tasks grouped under the day
                 for it in items:
                     st.write(f"▢ **{it['task']}** ({it['hours']}h) · {it['difficulty']}")
