@@ -93,7 +93,7 @@ st.sidebar.title("Weekly Overload Planner")
 page = st.sidebar.radio("Navigate", ["Planner","About","How It Works"])
 
 # -------------------------------------------------
-# HELPER
+# HELPERS
 # -------------------------------------------------
 def placeholder_schedule(tasks):
     schedule = {d: [] for d in DAYS}
@@ -111,10 +111,18 @@ def placeholder_schedule(tasks):
     i = 0
     for t in tasks:
         d = DAYS[i % 7]
-        schedule[d].append((t["name"],t["hours"]))
+        schedule[d].append((t["name"], t["hours"]))
         i += 1
 
     return schedule
+
+def delete_task_at_index(idx: int):
+    """Delete a single task by list index."""
+    if 0 <= idx < len(st.session_state.tasks):
+        st.session_state.tasks.pop(idx)
+        # If schedule was generated, keep UX consistent:
+        # the user can re-generate after deletions.
+        st.session_state.generated = False
 
 # -------------------------------------------------
 # PLANNER PAGE
@@ -124,42 +132,85 @@ if page == "Planner":
     st.title("🗓️ Weekly Overload Planner")
     st.caption("Plan a realistic week, not a perfect one.")
 
-    left,right = st.columns(2)
+    left, right = st.columns(2)
 
     # INPUT CARD
     with left:
         st.markdown('<div class="card">', unsafe_allow_html=True)
         st.subheader("Add Task")
 
-        with st.form("task_form"):
+        with st.form("task_form", clear_on_submit=True):
             name = st.text_input("Task Name")
-            c1,c2 = st.columns(2)
+            c1, c2 = st.columns(2)
             with c1:
-                hours = st.number_input("Hours",0.5,20.0,1.0,0.5)
+                hours = st.number_input("Hours", 0.5, 20.0, 1.0, 0.5)
             with c2:
-                diff = st.selectbox("Difficulty",DIFFICULTIES)
+                diff = st.selectbox("Difficulty", DIFFICULTIES)
 
-            due = st.date_input("Due Date", date.today()+timedelta(days=2))
+            due = st.date_input("Due Date", date.today() + timedelta(days=2))
             submit = st.form_submit_button("Add Task")
 
-        if submit and name:
-            st.session_state.tasks.append({"name":name,"hours":hours,"difficulty":diff,"due":due})
-            st.success("Task added")
+        if submit:
+            if name and name.strip():
+                st.session_state.tasks.append(
+                    {"name": name.strip(), "hours": float(hours), "difficulty": diff, "due": due}
+                )
+                st.success("Task added")
+                st.session_state.generated = False
+            else:
+                st.warning("Please enter a task name.")
+
+        st.markdown("</div>", unsafe_allow_html=True)
+
+        # TASK LIST + DELETE (NEW)
+        st.markdown('<div class="card">', unsafe_allow_html=True)
+        st.subheader("Your Tasks")
+
+        if not st.session_state.tasks:
+            st.write("No tasks yet. Add one above.")
+        else:
+            # Header row
+            h1, h2, h3, h4, h5 = st.columns([3.2, 1.1, 1.2, 1.6, 1.0])
+            h1.markdown("**Task**")
+            h2.markdown("**Hours**")
+            h3.markdown("**Diff**")
+            h4.markdown("**Due**")
+            h5.markdown("**Delete**")
+
+            st.markdown("<hr/>", unsafe_allow_html=True)
+
+            # Rows
+            for idx, t in enumerate(st.session_state.tasks):
+                c1, c2, c3, c4, c5 = st.columns([3.2, 1.1, 1.2, 1.6, 1.0])
+                c1.write(t["name"])
+                c2.write(f'{t["hours"]:.1f}')
+                c3.write(t["difficulty"])
+                c4.write(t["due"].strftime("%b %d, %Y"))
+
+                if c5.button("🗑️", key=f"del_{idx}", help="Delete this task"):
+                    delete_task_at_index(idx)
+                    st.rerun()
+
+            st.markdown("<hr/>", unsafe_allow_html=True)
+            if st.button("Clear All Tasks"):
+                st.session_state.tasks = []
+                st.session_state.generated = False
+                st.rerun()
 
         st.markdown("</div>", unsafe_allow_html=True)
 
         # AVAILABILITY CARD
         st.markdown('<div class="card">', unsafe_allow_html=True)
         st.subheader("Daily Availability")
-        availability={}
+        availability = {}
         cols = st.columns(7)
-        for i,d in enumerate(DAYS):
+        for i, d in enumerate(DAYS):
             with cols[i]:
-                availability[d]=st.number_input(d,0.0,12.0,2.0,0.5,key=f"a{i}")
+                availability[d] = st.number_input(d, 0.0, 12.0, 2.0, 0.5, key=f"a{i}")
         st.markdown("</div>", unsafe_allow_html=True)
 
         if st.button("Generate My Week"):
-            st.session_state.generated=True
+            st.session_state.generated = True
 
     # OUTPUT CARD
     with right:
@@ -173,30 +224,5 @@ if page == "Planner":
                 st.markdown(f"### {d}")
                 if sched[d]:
                     for item in sched[d]:
-                        st.checkbox(f"{item[0]} ({item[1]}h)", key=f"{d}{item[0]}")
+                        st.checkbox(f"{item[0]} ({item[1]}h)", key=f"{d}_{item[0]}")
                 else:
-                    st.write("Rest / Flex Time")
-
-        else:
-            st.info("Click Generate My Week to see your schedule")
-
-        st.markdown("</div>", unsafe_allow_html=True)
-
-# -------------------------------------------------
-# ABOUT
-# -------------------------------------------------
-elif page=="About":
-    st.title("About")
-    st.write("A calming planning tool to reduce academic overwhelm and help students organize realistically.")
-
-# -------------------------------------------------
-# HOW IT WORKS
-# -------------------------------------------------
-else:
-    st.title("How It Works")
-    st.write("""
-1. Add tasks
-2. Enter daily availability
-3. Generate a balanced week
-(Current version uses placeholder scheduling)
-""")
