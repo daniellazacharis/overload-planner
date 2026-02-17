@@ -379,54 +379,54 @@ if page == "Planner":
                 st.session_state.availability[d] = new_val
                 
     # ---------------- RIGHT PANEL ----------------
-    with right:
-    st.subheader("Your Balanced Week")
-
-    generate = st.button("✨ Generate My Week", type="primary", use_container_width=True)
-
-    if generate:
-        progress = st.progress(0)
-        for i in range(101):
-            time.sleep(0.05)
-            progress.progress(i)
-
-        generate_placeholder_schedule()
-        st.success("Week Generated!")
-
-    # 🔥 THIS MUST BE OUTSIDE THE BUTTON BLOCK
-    if st.session_state.generated:
-
-        for d in DAYS:
-            items = st.session_state.schedule.get(d, [])
-
-            state, planned, available, overload = analyze_day(d, items)
-            css_class, label = workload_classification(state, planned, available)
-
-            st.markdown(f"""
-            <div class="day-card {css_class}">
-                <div class="day-title">{d}</div>
-                <div class="day-sub">{label} • {planned}h planned / {available}h available</div>
-            """, unsafe_allow_html=True)
-
-            if state == "REST":
-                st.markdown("*No work scheduled — recovery day*", unsafe_allow_html=True)
-            else:
-                for it in items:
-                    st.markdown(f"- **{it['task']}** ({it['hours']}h) · {it['difficulty']}")
-
-            st.markdown("</div>", unsafe_allow_html=True)
-
-        st.divider()
-
-        # 🔥 Put PDF export HERE too
-        pdf = generate_pdf()
-        st.download_button(
-            label="📄 Export Week as PDF",
-            data=pdf,
-            file_name="weekly_plan.pdf",
-            mime="application/pdf",
-            use_container_width=True
-        )
+        with right:
+        st.subheader("Your Balanced Week")
+    
+        generate = st.button("✨ Generate My Week", type="primary", use_container_width=True)
+    
+        if generate:
+            progress = st.progress(0)
+            for i in range(101):
+                time.sleep(0.05)
+                progress.progress(i)
+    
+            generate_placeholder_schedule()
+            st.success("Week Generated!")
+    
+        # 🔥 THIS MUST BE OUTSIDE THE BUTTON BLOCK
+        if st.session_state.generated:
+    
+            for d in DAYS:
+                items = st.session_state.schedule.get(d, [])
+    
+                state, planned, available, overload = analyze_day(d, items)
+                css_class, label = workload_classification(state, planned, available)
+    
+                st.markdown(f"""
+                <div class="day-card {css_class}">
+                    <div class="day-title">{d}</div>
+                    <div class="day-sub">{label} • {planned}h planned / {available}h available</div>
+                """, unsafe_allow_html=True)
+    
+                if state == "REST":
+                    st.markdown("*No work scheduled — recovery day*", unsafe_allow_html=True)
+                else:
+                    for it in items:
+                        st.markdown(f"- **{it['task']}** ({it['hours']}h) · {it['difficulty']}")
+    
+                st.markdown("</div>", unsafe_allow_html=True)
+    
+            st.divider()
+    
+            # 🔥 Put PDF export HERE too
+            pdf = generate_pdf()
+            st.download_button(
+                label="📄 Export Week as PDF",
+                data=pdf,
+                file_name="weekly_plan.pdf",
+                mime="application/pdf",
+                use_container_width=True
+            )
 
 elif page == "About":
     st.subheader("About Weekly Overload Planner")
