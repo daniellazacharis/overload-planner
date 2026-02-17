@@ -223,4 +223,32 @@ if page == "Planner":
                 st.markdown(f"### {d}")
                 if sched[d]:
                     for item in sched[d]:
-                        # unique key to avoid co
+                        # unique key to avoid collisions if same name appears twice
+                        st.checkbox(f"{item[0]} ({item[1]}h)", key=f"{d}_{item[0]}_{item[1]}")
+                else:
+                    st.write("Rest / Flex Time")
+        else:
+            st.info("Click Generate My Week to see your schedule")
+
+        st.markdown("</div>", unsafe_allow_html=True)
+
+# -------------------------------------------------
+# ABOUT
+# -------------------------------------------------
+elif page == "About":
+    st.title("About")
+    st.write("A calming planning tool to reduce academic overwhelm and help students organize realistically.")
+
+# -------------------------------------------------
+# HOW IT WORKS
+# -------------------------------------------------
+else:
+    st.title("How It Works")
+    st.write(
+        """
+1. Add tasks
+2. Enter daily availability
+3. Generate a balanced week
+(Current version uses placeholder scheduling)
+"""
+    )
