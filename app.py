@@ -2,6 +2,11 @@
 import streamlit as st
 from datetime import date, timedelta
 import time
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.lib import colors
+from reportlab.lib.pagesizes import letter, landscape
+from io import BytesIO
 
 st.set_page_config(
     page_title="Weekly Overload Planner",
@@ -208,6 +213,74 @@ def workload_classification(state, planned, available):
         return "moderate", "Moderate Workload"
     else:
         return "heavy", "Heavy Workload"
+
+def workload_classification(state, planned, available):
+    if state == "REST":
+        return "rest", "💪 Rest Day"
+
+    if state == "OVERLOAD":
+        return "overloaded", f"⚠️ Overloaded by {round(planned-available,2)}h"
+
+    ratio = planned / available if available > 0 else 0
+
+    if ratio <= 0.4:
+        return "light", "Light Workload"
+    elif ratio <= 0.75:
+        return "moderate", "Moderate Workload"
+    else:
+        return "heavy", "Heavy Workload"
+
+def generate_pdf():
+    buffer = BytesIO()
+
+    doc = SimpleDocTemplate(
+        buffer,
+        pagesize=landscape(letter),
+        leftMargin=40,
+        rightMargin=40,
+        topMargin=40,
+        bottomMargin=40,
+    )
+
+    styles = getSampleStyleSheet()
+    elements = []
+
+    elements.append(Paragraph("Weekly Overload Planner", styles["Title"]))
+    elements.append(Spacer(1, 20))
+
+    table_data = [["Day", "Planned Hours", "Available", "Status", "Tasks"]]
+
+    for d in DAYS:
+        items = st.session_state.schedule.get(d, [])
+        state, planned, available, overload = analyze_day(d, items)
+
+        if state == "REST":
+            status = "Rest Day"
+            tasks_text = "-"
+        elif state == "OVERLOAD":
+            status = f"Overloaded by {overload}h"
+            tasks_text = "\n".join([f"{t['task']} ({t['hours']}h)" for t in items])
+        else:
+            status = status_label(planned)
+            tasks_text = "\n".join([f"{t['task']} ({t['hours']}h)" for t in items])
+
+        table_data.append([d, f"{planned}h", f"{available}h", status, tasks_text])
+
+    table = Table(table_data, repeatRows=1, colWidths=[60, 90, 90, 140, 360])
+
+    table.setStyle(TableStyle([
+        ("BACKGROUND", (0,0), (-1,0), colors.HexColor("#E7F1FA")),
+        ("GRID", (0,0), (-1,-1), 0.5, colors.grey),
+        ("VALIGN", (0,0), (-1,-1), "TOP"),
+        ("FONTNAME", (0,0), (-1,0), "Helvetica-Bold"),
+        ("PADDING", (0,0), (-1,-1), 8),
+    ]))
+
+    elements.append(table)
+    doc.build(elements)
+
+    buffer.seek(0)
+    return buffer
 
 # ---------- App ----------
 init_state()
