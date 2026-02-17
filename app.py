@@ -112,21 +112,18 @@ def generate_placeholder_schedule():
     - Respects daily availability
     - Prioritizes earliest due date
     - Splits tasks across days
-    - Prevents scheduling after due date when possible
+    - Detects unschedulable work
     """
 
     today = date.today()
 
-    # Reset schedule
     schedule = {d: [] for d in DAYS}
     remaining = {d: float(st.session_state.availability.get(d, 0.0)) for d in DAYS}
     unscheduled_tasks = []
-    
-    # Map weekday index to DAYS label
+
     def date_to_day_label(dt):
         return DAYS[dt.weekday()]
 
-    # Sort by due date then difficulty
     tasks = sorted(
         st.session_state.tasks,
         key=lambda t: (t["due"], DIFFICULTY_ORDER.get(t["difficulty"], 99)),
@@ -155,37 +152,38 @@ def generate_placeholder_schedule():
 
             current_day += timedelta(days=1)
 
-# -------- If still unfinished: spillover (max 7 future days) --------
-spill_days_checked = 0
+        # -------- Spillover (max 7 future days) --------
+        spill_days_checked = 0
 
-while hours_left > 0 and spill_days_checked < 7:
-    day_label = date_to_day_label(current_day)
+        while hours_left > 0 and spill_days_checked < 7:
+            day_label = date_to_day_label(current_day)
 
-    if remaining[day_label] > 0:
-        chunk = min(hours_left, remaining[day_label])
+            if remaining[day_label] > 0:
+                chunk = min(hours_left, remaining[day_label])
 
-        schedule[day_label].append({
-            "task": f"{task['name']} (Overdue)",
-            "hours": round(chunk, 2),
-            "difficulty": task["difficulty"],
-            "due": task["due"],
-        })
+                schedule[day_label].append({
+                    "task": f"{task['name']} (Overdue)",
+                    "hours": round(chunk, 2),
+                    "difficulty": task["difficulty"],
+                    "due": task["due"],
+                })
 
-        remaining[day_label] -= chunk
-        hours_left -= chunk
+                remaining[day_label] -= chunk
+                hours_left -= chunk
 
-    current_day += timedelta(days=1)
-    spill_days_checked += 1
+            current_day += timedelta(days=1)
+            spill_days_checked += 1
 
-    # If still unfinished after checking future days
-if hours_left > 0:
-    unscheduled_tasks.append({
-        "task": task["name"],
-        "hours": round(hours_left, 2)
-    })
+        # -------- If still unfinished --------
+        if hours_left > 0:
+            unscheduled_tasks.append({
+                "task": task["name"],
+                "hours": round(hours_left, 2)
+            })
 
-    st.session_state.unscheduled = unscheduled_tasks
+    # Save results
     st.session_state.schedule = schedule
+    st.session_state.unscheduled = unscheduled_tasks
     st.session_state.generated = True
 
 def status_label(total_hours):
@@ -375,65 +373,65 @@ if page == "Planner":
                 st.session_state.availability[d] = new_val
                 
     # ---------------- RIGHT PANEL ----------------
-        with right:
-            st.subheader("Your Balanced Week")
+    with right:
+        st.subheader("Your Balanced Week")
         
-            generate = st.button("✨ Generate My Week", type="primary", use_container_width=True)
+        generate = st.button("✨ Generate My Week", type="primary", use_container_width=True)
         
-            if generate:
-                progress = st.progress(0)
-                for i in range(101):
-                    time.sleep(0.05)
-                    progress.progress(i)
+        if generate:
+            progress = st.progress(0)
+            for i in range(101):
+                time.sleep(0.05)
+                progress.progress(i)
         
-                generate_placeholder_schedule()
-                st.success("Week Generated!")
+            generate_placeholder_schedule()
+            st.success("Week Generated!")
         
-            # 🔥 THIS MUST BE OUTSIDE THE BUTTON BLOCK
-            if st.session_state.generated:
+        # 🔥 THIS MUST BE OUTSIDE THE BUTTON BLOCK
+        if st.session_state.generated:
         
-                for d in DAYS:
-                    items = st.session_state.schedule.get(d, [])
+            for d in DAYS:
+                items = st.session_state.schedule.get(d, [])
         
-                    state, planned, available, overload = analyze_day(d, items)
-                    css_class, label = workload_classification(state, planned, available)
+                state, planned, available, overload = analyze_day(d, items)
+                css_class, label = workload_classification(state, planned, available)
         
-                    st.markdown(f"""
-                    <div class="day-card {css_class}">
-                        <div class="day-title">{d}</div>
-                        <div class="day-sub">{label} • {planned}h planned / {available}h available</div>
-                    """, unsafe_allow_html=True)
+                st.markdown(f"""
+                <div class="day-card {css_class}">
+                    <div class="day-title">{d}</div>
+                    <div class="day-sub">{label} • {planned}h planned / {available}h available</div>
+                """, unsafe_allow_html=True)
         
-                    if state == "REST":
-                        st.markdown("*No work scheduled — recovery day*", unsafe_allow_html=True)
-                    else:
-                        for it in items:
-                            st.markdown(f"- **{it['task']}** ({it['hours']}h) · {it['difficulty']}")
+                if state == "REST":
+                    st.markdown("*No work scheduled — recovery day*", unsafe_allow_html=True)
+                else:
+                    for it in items:
+                        st.markdown(f"- **{it['task']}** ({it['hours']}h) · {it['difficulty']}")
         
-                    st.markdown("</div>", unsafe_allow_html=True)
+                st.markdown("</div>", unsafe_allow_html=True)
         
-                st.divider()
+            st.divider()
         
                 # 🔥 Put PDF export HERE too
-                pdf = generate_pdf()
-                st.download_button(
-                    label="📄 Export Week as PDF",
-                    data=pdf,
-                    file_name="weekly_plan.pdf",
-                    mime="application/pdf",
-                    use_container_width=True
-                )
-                # 🔥 Show unschedulable tasks
-                if "unscheduled" in st.session_state and st.session_state.unscheduled:
+            pdf = generate_pdf()
+            st.download_button(
+                label="📄 Export Week as PDF",
+                data=pdf,
+                file_name="weekly_plan.pdf",
+                mime="application/pdf",
+                use_container_width=True
+            )
+            # 🔥 Show unschedulable tasks
+            if "unscheduled" in st.session_state and st.session_state.unscheduled:
                 
-                    st.markdown("### ⚠️ Unscheduled Work")
+                st.markdown("### ⚠️ Unscheduled Work")
                 
-                    for item in st.session_state.unscheduled:
-                        st.markdown(
-                            f"- **{item['task']}** — {item['hours']}h could not be placed"
-                        )
+                for item in st.session_state.unscheduled:
+                    st.markdown(
+                        f"- **{item['task']}** — {item['hours']}h could not be placed"
+                    )
                 
-                    st.warning("Consider increasing availability or adjusting deadlines.")
+                st.warning("Consider increasing availability or adjusting deadlines.")
 
 elif page == "About":
     st.subheader("About Weekly Overload Planner")
