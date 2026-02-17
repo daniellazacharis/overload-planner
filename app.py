@@ -2,253 +2,221 @@
 import streamlit as st
 from datetime import date, timedelta
 
-st.set_page_config(page_title="Weekly Overload Planner", layout="wide")
-
-# -------------------------------------------------
-# RELAXING THEME CSS
-# -------------------------------------------------
-st.markdown(
-    """
-<style>
-
-/* Overall background */
-.stApp {
-    background-color: #F4F7F6;
-}
-
-/* Sidebar */
-section[data-testid="stSidebar"] {
-    background-color: #E6EFEE;
-}
-
-/* Headers */
-h1, h2, h3 {
-    color: #2F3E46;
-}
-
-/* Body text */
-p, label, span {
-    color: #5C6B73 !important;
-}
-
-/* Card containers */
-.card {
-    background-color: white;
-    padding: 20px;
-    border-radius: 18px;
-    box-shadow: 0px 4px 18px rgba(0,0,0,0.05);
-    margin-bottom: 20px;
-}
-
-/* Buttons */
-.stButton > button {
-    background-color: #7FAFA9;
-    color: white;
-    border-radius: 12px;
-    border: none;
-    padding: 10px 18px;
-    font-weight: 600;
-}
-.stButton > button:hover {
-    background-color: #6FA8A5;
-}
-
-/* Inputs */
-.stTextInput input, .stNumberInput input, .stDateInput input {
-    border-radius: 10px;
-}
-
-/* Checkbox spacing */
-.stCheckbox {
-    padding: 3px 0px;
-}
-
-/* Success messages */
-div[data-testid="stAlert"] {
-    border-radius: 12px;
-}
-
-/* Divider */
-hr {
-    border-top: 1px solid #DDE6E5;
-}
-
-</style>
-""",
-    unsafe_allow_html=True,
-)
-
-# -------------------------------------------------
-# STATE
-# -------------------------------------------------
-if "tasks" not in st.session_state:
-    st.session_state.tasks = []
-if "generated" not in st.session_state:
-    st.session_state.generated = False
+st.set_page_config(page_title="Weekly Overload Planner", page_icon="🗓️", layout="wide")
 
 DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
-DIFFICULTIES = ["Low", "Med", "High"]
+DIFFICULTY_ORDER = {"Low": 1, "Med": 2, "High": 3}
 
-# -------------------------------------------------
-# SIDEBAR
-# -------------------------------------------------
-st.sidebar.title("Weekly Overload Planner")
-page = st.sidebar.radio("Navigate", ["Planner", "About", "How It Works"])
+# ---------- Helpers ----------
+def init_state():
+    if "tasks" not in st.session_state:
+        st.session_state.tasks = []
+    if "generated" not in st.session_state:
+        st.session_state.generated = False
+    if "availability" not in st.session_state:
+        st.session_state.availability = {d: 2.0 for d in DAYS}  # default
+    if "schedule" not in st.session_state:
+        st.session_state.schedule = {d: [] for d in DAYS}
 
-# -------------------------------------------------
-# HELPERS
-# -------------------------------------------------
-def placeholder_schedule(tasks):
+def add_task(name: str, hours: float, difficulty: str, due: date):
+    st.session_state.tasks.append(
+        {
+            "name": name.strip(),
+            "hours": float(hours),
+            "difficulty": difficulty,
+            "due": due,
+        }
+    )
+
+def clear_tasks():
+    st.session_state.tasks = []
+    st.session_state.generated = False
+    st.session_state.schedule = {d: [] for d in DAYS}
+
+def generate_placeholder_schedule():
+    """
+    Placeholder schedule:
+    - Sort tasks by due date then difficulty
+    - Allocate tasks sequentially through the week based on daily availability
+    - This is intentionally simple; you can upgrade later.
+    """
+    tasks = sorted(
+        st.session_state.tasks,
+        key=lambda t: (t["due"], DIFFICULTY_ORDER.get(t["difficulty"], 99)),
+    )
+
+    remaining = {d: float(st.session_state.availability.get(d, 0.0)) for d in DAYS}
     schedule = {d: [] for d in DAYS}
 
-    if not tasks:
-        schedule["Mon"] = [("Light Study", 1.5)]
-        schedule["Tue"] = [("Homework", 2)]
-        schedule["Wed"] = [("Review", 1)]
-        schedule["Thu"] = [("Prep", 1)]
-        schedule["Fri"] = [("Catch-up", 1)]
-        schedule["Sat"] = [("Life Admin", 1)]
-        schedule["Sun"] = [("Plan Next Week", 0.5)]
-        return schedule
-
-    i = 0
     for t in tasks:
-        d = DAYS[i % 7]
-        schedule[d].append((t["name"], t["hours"]))
-        i += 1
+        hours_left = float(t["hours"])
+        if hours_left <= 0:
+            continue
 
-    return schedule
+        for d in DAYS:
+            if hours_left <= 0:
+                break
+            if remaining[d] <= 0:
+                continue
+
+            chunk = min(hours_left, remaining[d])
+            schedule[d].append(
+                {
+                    "task": t["name"],
+                    "hours": round(chunk, 2),
+                    "difficulty": t["difficulty"],
+                }
+            )
+            remaining[d] = round(remaining[d] - chunk, 2)
+            hours_left = round(hours_left - chunk, 2)
+
+        # If we couldn't fit it, park what's left in the last day as "Overflow"
+        if hours_left > 0:
+            schedule["Sun"].append(
+                {
+                    "task": f"{t['name']} (Overflow)",
+                    "hours": round(hours_left, 2),
+                    "difficulty": t["difficulty"],
+                }
+            )
+
+    st.session_state.schedule = schedule
+    st.session_state.generated = True
+
+def status_label(items):
+    """Light / Balanced / Heavy based on number of scheduled items & total hours."""
+    if not items:
+        return "Free"
+    total_hours = sum(x["hours"] for x in items)
+    if total_hours <= 2:
+        return "Light"
+    if total_hours <= 4:
+        return "Balanced"
+    return "Heavy"
 
 
-def delete_task_at_index(idx: int):
-    if 0 <= idx < len(st.session_state.tasks):
-        st.session_state.tasks.pop(idx)
-        st.session_state.generated = False  # so they regenerate after changes
+# ---------- App ----------
+init_state()
 
+st.title("Weekly Overload Planner")
+st.caption('Plan a realistic week, not a perfect one.')
 
-# -------------------------------------------------
-# PLANNER PAGE
-# -------------------------------------------------
+page = st.sidebar.radio("Navigation", ["Planner", "About", "How It Works"], index=0)
+
 if page == "Planner":
-    st.title("🗓️ Weekly Overload Planner")
-    st.caption("Plan a realistic week, not a perfect one.")
+    left, right = st.columns([1, 1])
 
-    left, right = st.columns(2)
-
-    # INPUT CARD
     with left:
-        st.markdown('<div class="card">', unsafe_allow_html=True)
         st.subheader("Add Task")
 
-        with st.form("task_form", clear_on_submit=True):
-            name = st.text_input("Task Name")
-            c1, c2 = st.columns(2)
-            with c1:
-                hours = st.number_input("Hours", 0.5, 20.0, 1.0, 0.5)
-            with c2:
-                diff = st.selectbox("Difficulty", DIFFICULTIES)
+        with st.form("add_task_form", clear_on_submit=True):
+            task_name = st.text_input("Task Name", placeholder="e.g., Study Chapter 3")
+            col1, col2 = st.columns(2)
+            with col1:
+                task_hours = st.number_input("Estimated Time (hours)", min_value=0.0, step=0.5, value=1.0)
+            with col2:
+                task_difficulty = st.selectbox("Difficulty", ["Low", "Med", "High"], index=1)
 
-            due = st.date_input("Due Date", date.today() + timedelta(days=2))
-            submit = st.form_submit_button("Add Task")
+            task_due = st.date_input("Due Date", value=date.today() + timedelta(days=2))
 
-        if submit:
-            if name and name.strip():
-                st.session_state.tasks.append(
-                    {"name": name.strip(), "hours": float(hours), "difficulty": diff, "due": due}
+            submitted = st.form_submit_button("➕ Add Task")
+            if submitted:
+                if not task_name.strip():
+                    st.error("Please enter a task name.")
+                else:
+                    add_task(task_name, task_hours, task_difficulty, task_due)
+                    st.success("Task added!")
+
+        st.divider()
+        st.subheader("Daily Availability (hours)")
+
+        av_cols = st.columns(7)
+        for i, d in enumerate(DAYS):
+            with av_cols[i]:
+                st.session_state.availability[d] = st.number_input(
+                    d,
+                    min_value=0.0,
+                    step=0.5,
+                    value=float(st.session_state.availability.get(d, 0.0)),
+                    key=f"avail_{d}",
                 )
-                st.success("Task added")
-                st.session_state.generated = False
-            else:
-                st.warning("Please enter a task name.")
 
-        st.markdown("</div>", unsafe_allow_html=True)
-
-        # TASK LIST + DELETE
-        st.markdown('<div class="card">', unsafe_allow_html=True)
+        st.divider()
         st.subheader("Your Tasks")
 
         if not st.session_state.tasks:
-            st.write("No tasks yet. Add one above.")
+            st.info("No tasks yet. Add a few on the form above.")
         else:
-            h1, h2, h3, h4, h5 = st.columns([3.2, 1.1, 1.2, 1.6, 1.0])
-            h1.markdown("**Task**")
-            h2.markdown("**Hours**")
-            h3.markdown("**Diff**")
-            h4.markdown("**Due**")
-            h5.markdown("**Delete**")
-            st.markdown("<hr/>", unsafe_allow_html=True)
+            # display a compact list
+            for idx, t in enumerate(st.session_state.tasks, start=1):
+                st.write(
+                    f"**{idx}. {t['name']}** — {t['hours']}h · {t['difficulty']} · due {t['due'].strftime('%b %d, %Y')}"
+                )
 
-            for idx, t in enumerate(st.session_state.tasks):
-                c1, c2, c3, c4, c5 = st.columns([3.2, 1.1, 1.2, 1.6, 1.0])
-                c1.write(t["name"])
-                c2.write(f'{t["hours"]:.1f}')
-                c3.write(t["difficulty"])
-                c4.write(t["due"].strftime("%b %d, %Y"))
-
-                if c5.button("🗑️", key=f"del_{idx}", help="Delete this task"):
-                    delete_task_at_index(idx)
+            c1, c2 = st.columns([1, 1])
+            with c1:
+                if st.button("🧹 Clear Tasks", use_container_width=True):
+                    clear_tasks()
                     st.rerun()
 
-            st.markdown("<hr/>", unsafe_allow_html=True)
-
-            if st.button("Clear All Tasks"):
-                st.session_state.tasks = []
-                st.session_state.generated = False
-                st.rerun()
-
-        st.markdown("</div>", unsafe_allow_html=True)
-
-        # AVAILABILITY CARD
-        st.markdown('<div class="card">', unsafe_allow_html=True)
-        st.subheader("Daily Availability")
-        availability = {}
-        cols = st.columns(7)
-        for i, d in enumerate(DAYS):
-            with cols[i]:
-                availability[d] = st.number_input(d, 0.0, 12.0, 2.0, 0.5, key=f"a{i}")
-        st.markdown("</div>", unsafe_allow_html=True)
-
-        if st.button("Generate My Week"):
-            st.session_state.generated = True
-
-    # OUTPUT CARD
     with right:
-        st.markdown('<div class="card">', unsafe_allow_html=True)
         st.subheader("Your Balanced Week")
 
-        if st.session_state.generated:
-            sched = placeholder_schedule(st.session_state.tasks)
+        generate = st.button("✨ Generate My Week", type="primary", use_container_width=True)
+        if generate:
+            generate_placeholder_schedule()
 
-            for d in DAYS:
-                st.markdown(f"### {d}")
-                if sched[d]:
-                    for item in sched[d]:
-                        # unique key to avoid collisions if same name appears twice
-                        st.checkbox(f"{item[0]} ({item[1]}h)", key=f"{d}_{item[0]}_{item[1]}")
-                else:
-                    st.write("Rest / Flex Time")
+        if not st.session_state.generated:
+            st.info("Click **Generate My Week** to see a placeholder schedule for Mon–Sun.")
         else:
-            st.info("Click Generate My Week to see your schedule")
+            # Schedule display (placeholder allocation)
+            for d in DAYS:
+                items = st.session_state.schedule.get(d, [])
+                st.markdown(f"### {d} — *Status: {status_label(items)}*")
 
-        st.markdown("</div>", unsafe_allow_html=True)
+                if not items:
+                    st.write("▫️ No scheduled tasks")
+                else:
+                    for it in items:
+                        st.write(f"▢ **{it['task']}** ({it['hours']}h) · {it['difficulty']}")
 
-# -------------------------------------------------
-# ABOUT
-# -------------------------------------------------
+                st.divider()
+
 elif page == "About":
-    st.title("About")
-    st.write("A calming planning tool to reduce academic overwhelm and help students organize realistically.")
-
-# -------------------------------------------------
-# HOW IT WORKS
-# -------------------------------------------------
-else:
-    st.title("How It Works")
+    st.subheader("About Weekly Overload Planner")
     st.write(
         """
-1. Add tasks
-2. Enter daily availability
-3. Generate a balanced week
-(Current version uses placeholder scheduling)
-"""
+Weekly Overload Planner is a lightweight tool for turning a messy task list into a realistic weekly plan.
+You add tasks (with estimated time, difficulty, and due date), set how many hours you can handle each day,
+and generate a weekly view.
+
+This version includes a simple placeholder allocator to demonstrate the flow.
+        """.strip()
+    )
+
+elif page == "How It Works":
+    st.subheader("How It Works")
+    st.write(
+        """
+1) Add tasks with:
+- **Task Name**
+- **Estimated hours**
+- **Difficulty**
+- **Due date**
+
+2) Set your daily availability (**Mon–Sun**) in hours.
+
+3) Click **Generate My Week** to create a placeholder schedule.
+
+**Current logic (placeholder):**
+- Tasks are sorted by due date, then difficulty
+- Time is allocated across the week until daily availability is used up
+- Any leftover becomes **Overflow** (placed on Sunday)
+
+You can upgrade this later to:
+- prioritize earlier due dates more aggressively
+- avoid scheduling hard tasks back-to-back
+- add “rest buffers”
+- drag-and-drop editing
+        """.strip()
     )
