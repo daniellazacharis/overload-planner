@@ -15,7 +15,10 @@ def init_state():
     if "generated" not in st.session_state:
         st.session_state.generated = False
     if "availability" not in st.session_state:
-        st.session_state.availability = {d: 2.0 for d in DAYS}
+        st.session_state.availability = {
+            "Mon": 2.0, "Tue": 2.0, "Wed": 2.0,
+            "Thu": 2.0, "Fri": 2.0, "Sat": 2.0, "Sun": 2.0
+        }
     if "schedule" not in st.session_state:
         st.session_state.schedule = {d: [] for d in DAYS}
 
@@ -181,6 +184,29 @@ if page == "Planner":
                         delete_task(idx)
                         st.rerun()
 
+            # ---------------- DAILY AVAILABILITY ----------------
+        st.divider()
+        st.subheader("Daily Availability")
+        
+        st.caption("How many hours can you realistically work each day?")
+        
+        # 7 columns across
+        day_cols = st.columns(7)
+        
+        for i, d in enumerate(DAYS):
+            with day_cols[i]:
+                new_val = st.number_input(
+                    d,
+                    min_value=0.0,
+                    max_value=24.0,
+                    step=0.5,
+                    value=float(st.session_state.availability[d]),
+                    key=f"availability_{d}"
+                )
+        
+                # update state live
+                st.session_state.availability[d] = new_val
+                
     # ---------------- RIGHT PANEL ----------------
     with right:
         st.subheader("Your Balanced Week")
