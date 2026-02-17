@@ -29,7 +29,7 @@ st.markdown("""
     margin-bottom: 18px;
     box-shadow: 0px 4px 14px rgba(0,0,0,0.06);
     border: 1px solid rgba(0,0,0,0.05);
-    color: #1F2933 !important;   /* DARK TEXT */
+    color: #EDE8D0 !important;   /* DARK TEXT */
 }
 
 /* FORCE ALL TEXT INSIDE CARDS TO BE DARK */
