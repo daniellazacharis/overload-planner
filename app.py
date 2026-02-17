@@ -380,51 +380,53 @@ if page == "Planner":
                 
     # ---------------- RIGHT PANEL ----------------
     with right:
-        st.subheader("Your Balanced Week")
+    st.subheader("Your Balanced Week")
 
-        generate = st.button("✨ Generate My Week", type="primary", use_container_width=True)
+    generate = st.button("✨ Generate My Week", type="primary", use_container_width=True)
 
-        if generate:
-            # Fake loading bar (5 seconds total)
-            progress = st.progress(0)
-            for i in range(101):
-                time.sleep(0.05)  # 0.05 * 100 ≈ 5 seconds
-                progress.progress(i)
+    if generate:
+        progress = st.progress(0)
+        for i in range(101):
+            time.sleep(0.05)
+            progress.progress(i)
 
-            generate_placeholder_schedule()
-            st.success("Week Generated!")
+        generate_placeholder_schedule()
+        st.success("Week Generated!")
 
-            if st.session_state.generated:
-            
-                for d in DAYS:
-                    items = st.session_state.schedule.get(d, [])
-            
-                    state, planned, available, overload = analyze_day(d, items)
-                    css_class, label = workload_classification(state, planned, available)
-            
-                    # Card Start
-                    st.markdown(f"""
-                    <div class="day-card {css_class}">
-                        <div class="day-title">{d}</div>
-                        <div class="day-sub">{label} • {planned}h planned / {available}h available</div>
-                    """, unsafe_allow_html=True)
-            
-                    # Tasks
-                    if state == "REST":
-                        st.markdown("*No work scheduled — recovery day*", unsafe_allow_html=True)
-            
-                    else:
-                        for it in items:
-                            st.markdown(f"- **{it['task']}** ({it['hours']}h) · {it['difficulty']}")
-            
-                    # Close Card
-                    st.markdown("</div>", unsafe_allow_html=True)
+    # 🔥 THIS MUST BE OUTSIDE THE BUTTON BLOCK
+    if st.session_state.generated:
 
-                # Show tasks grouped under the day
+        for d in DAYS:
+            items = st.session_state.schedule.get(d, [])
+
+            state, planned, available, overload = analyze_day(d, items)
+            css_class, label = workload_classification(state, planned, available)
+
+            st.markdown(f"""
+            <div class="day-card {css_class}">
+                <div class="day-title">{d}</div>
+                <div class="day-sub">{label} • {planned}h planned / {available}h available</div>
+            """, unsafe_allow_html=True)
+
+            if state == "REST":
+                st.markdown("*No work scheduled — recovery day*", unsafe_allow_html=True)
+            else:
                 for it in items:
-                    st.write(f"▢ **{it['task']}** ({it['hours']}h) · {it['difficulty']}")
-        
-                st.divider()
+                    st.markdown(f"- **{it['task']}** ({it['hours']}h) · {it['difficulty']}")
+
+            st.markdown("</div>", unsafe_allow_html=True)
+
+        st.divider()
+
+        # 🔥 Put PDF export HERE too
+        pdf = generate_pdf()
+        st.download_button(
+            label="📄 Export Week as PDF",
+            data=pdf,
+            file_name="weekly_plan.pdf",
+            mime="application/pdf",
+            use_container_width=True
+        )
 
 elif page == "About":
     st.subheader("About Weekly Overload Planner")
