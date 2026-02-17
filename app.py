@@ -12,31 +12,44 @@ DIFFICULTY_ORDER = {"Low": 1, "Med": 2, "High": 3}
 st.markdown("""
 <style>
 
+/* Base readable text inside cards */
 .day-card {
     border-radius: 18px;
     padding: 18px 18px 10px 18px;
     margin-bottom: 18px;
     box-shadow: 0px 4px 14px rgba(0,0,0,0.06);
     border: 1px solid rgba(0,0,0,0.05);
+    color: #1F2933 !important;   /* DARK TEXT */
+}
+
+/* FORCE ALL TEXT INSIDE CARDS TO BE DARK */
+.day-card * {
+    color: #1F2933 !important;
 }
 
 /* Workload colors */
-.light { background-color: #E8F5EC; }        /* soft green */
-.moderate { background-color: #E7F1FA; }     /* calm blue */
-.heavy { background-color: #FFF4E5; }        /* soft amber */
-.overloaded { background-color: #FDECEC; }   /* gentle red */
-.rest { background-color: #F1ECFF; }         /* lavender */
+.light { background-color: #E8F5EC; }        
+.moderate { background-color: #E7F1FA; }     
+.heavy { background-color: #FFF4E5; }        
+.overloaded { background-color: #FDECEC; }   
+.rest { background-color: #F1ECFF; }         
 
 .day-title {
-    font-weight: 600;
+    font-weight: 700;
     font-size: 20px;
     margin-bottom: 4px;
+    color: #0F172A !important;
 }
 
 .day-sub {
-    font-size: 13px;
-    opacity: 0.75;
+    font-size: 14px;
     margin-bottom: 10px;
+    color: #334155 !important;
+}
+
+/* Make bullet text readable */
+.day-card li, .day-card p, .day-card span {
+    color: #1F2933 !important;
 }
 
 </style>
