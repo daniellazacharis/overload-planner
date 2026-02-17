@@ -39,41 +39,71 @@ def delete_task(index: int):
     reset_generation()
 
 def generate_placeholder_schedule():
+    """
+    REAL scheduling algorithm:
+    - Respects daily availability
+    - Prioritizes earliest due date
+    - Splits tasks across days
+    - Prevents scheduling after due date when possible
+    """
+
+    today = date.today()
+
+    # Reset schedule
+    schedule = {d: [] for d in DAYS}
+    remaining = {d: float(st.session_state.availability.get(d, 0.0)) for d in DAYS}
+
+    # Map weekday index to DAYS label
+    def date_to_day_label(dt):
+        return DAYS[dt.weekday()]
+
+    # Sort by due date then difficulty
     tasks = sorted(
         st.session_state.tasks,
         key=lambda t: (t["due"], DIFFICULTY_ORDER.get(t["difficulty"], 99)),
     )
 
-    remaining = {d: float(st.session_state.availability.get(d, 0.0)) for d in DAYS}
-    schedule = {d: [] for d in DAYS}
+    for task in tasks:
+        hours_left = float(task["hours"])
+        current_day = today
 
-    for t in tasks:
-        hours_left = float(t["hours"])
-        for d in DAYS:
-            if hours_left <= 0:
-                break
-            if remaining[d] <= 0:
-                continue
+        # -------- Schedule BEFORE due date --------
+        while hours_left > 0 and current_day <= task["due"]:
+            day_label = date_to_day_label(current_day)
 
-            chunk = min(hours_left, remaining[d])
-            schedule[d].append(
-                {
-                    "task": t["name"],
+            if remaining[day_label] > 0:
+                chunk = min(hours_left, remaining[day_label])
+
+                schedule[day_label].append({
+                    "task": task["name"],
                     "hours": round(chunk, 2),
-                    "difficulty": t["difficulty"],
-                }
-            )
-            remaining[d] -= chunk
-            hours_left -= chunk
+                    "difficulty": task["difficulty"],
+                    "due": task["due"],
+                })
 
-        if hours_left > 0:
-            schedule["Sun"].append(
-                {
-                    "task": f"{t['name']} (Overflow)",
-                    "hours": round(hours_left, 2),
-                    "difficulty": t["difficulty"],
-                }
-            )
+                remaining[day_label] -= chunk
+                hours_left -= chunk
+
+            current_day += timedelta(days=1)
+
+        # -------- If still unfinished: spillover --------
+        while hours_left > 0:
+            day_label = date_to_day_label(current_day)
+
+            if remaining[day_label] > 0:
+                chunk = min(hours_left, remaining[day_label])
+
+                schedule[day_label].append({
+                    "task": f"{task['name']} (Overdue)",
+                    "hours": round(chunk, 2),
+                    "difficulty": task["difficulty"],
+                    "due": task["due"],
+                })
+
+                remaining[day_label] -= chunk
+                hours_left -= chunk
+
+            current_day += timedelta(days=1)
 
     st.session_state.schedule = schedule
     st.session_state.generated = True
