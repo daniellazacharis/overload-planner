@@ -3,7 +3,12 @@ import streamlit as st
 from datetime import date, timedelta
 import time
 
-st.set_page_config(page_title="Weekly Overload Planner", page_icon="🗓️", layout="wide")
+st.set_page_config(
+    page_title="Weekly Overload Planner",
+    page_icon="🗓️",
+    layout="wide",
+    initial_sidebar_state="collapsed"   # 👈 key line
+)
 
 DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
 DIFFICULTY_ORDER = {"Low": 1, "Med": 2, "High": 3}
@@ -68,6 +73,14 @@ def init_state():
         }
     if "schedule" not in st.session_state:
         st.session_state.schedule = {d: [] for d in DAYS}
+
+def close_sidebar():
+    st.markdown("""
+        <script>
+        const sidebar = window.parent.document.querySelector('[data-testid="stSidebar"]');
+        if (sidebar) { sidebar.setAttribute("aria-expanded", "false"); }
+        </script>
+    """, unsafe_allow_html=True)
 
 def add_task(name: str, hours: float, difficulty: str, due: date):
     st.session_state.tasks.append(
@@ -202,7 +215,17 @@ init_state()
 st.title("Weekly Overload Planner")
 st.caption("Plan a realistic week, not a perfect one.")
 
-page = st.sidebar.radio("Navigation", ["Planner", "About", "How It Works"])
+with st.sidebar:
+    st.title("🗓️ Menu")
+    st.caption("Navigate the planner")
+
+    page = st.radio(
+        "",
+        ["Planner", "About", "How It Works"],
+        label_visibility="collapsed"
+    )
+
+close_sidebar()
 
 if page == "Planner":
     left, right = st.columns([1, 1])
