@@ -7,7 +7,8 @@ st.set_page_config(page_title="Weekly Overload Planner", layout="wide")
 # -------------------------------------------------
 # RELAXING THEME CSS
 # -------------------------------------------------
-st.markdown("""
+st.markdown(
+    """
 <style>
 
 /* Overall background */
@@ -73,7 +74,9 @@ hr {
 }
 
 </style>
-""", unsafe_allow_html=True)
+""",
+    unsafe_allow_html=True,
+)
 
 # -------------------------------------------------
 # STATE
@@ -83,14 +86,14 @@ if "tasks" not in st.session_state:
 if "generated" not in st.session_state:
     st.session_state.generated = False
 
-DAYS = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"]
-DIFFICULTIES = ["Low","Med","High"]
+DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+DIFFICULTIES = ["Low", "Med", "High"]
 
 # -------------------------------------------------
 # SIDEBAR
 # -------------------------------------------------
 st.sidebar.title("Weekly Overload Planner")
-page = st.sidebar.radio("Navigate", ["Planner","About","How It Works"])
+page = st.sidebar.radio("Navigate", ["Planner", "About", "How It Works"])
 
 # -------------------------------------------------
 # HELPERS
@@ -99,13 +102,13 @@ def placeholder_schedule(tasks):
     schedule = {d: [] for d in DAYS}
 
     if not tasks:
-        schedule["Mon"] = [("Light Study",1.5)]
-        schedule["Tue"] = [("Homework",2)]
-        schedule["Wed"] = [("Review",1)]
-        schedule["Thu"] = [("Prep",1)]
-        schedule["Fri"] = [("Catch-up",1)]
-        schedule["Sat"] = [("Life Admin",1)]
-        schedule["Sun"] = [("Plan Next Week",0.5)]
+        schedule["Mon"] = [("Light Study", 1.5)]
+        schedule["Tue"] = [("Homework", 2)]
+        schedule["Wed"] = [("Review", 1)]
+        schedule["Thu"] = [("Prep", 1)]
+        schedule["Fri"] = [("Catch-up", 1)]
+        schedule["Sat"] = [("Life Admin", 1)]
+        schedule["Sun"] = [("Plan Next Week", 0.5)]
         return schedule
 
     i = 0
@@ -116,19 +119,17 @@ def placeholder_schedule(tasks):
 
     return schedule
 
+
 def delete_task_at_index(idx: int):
-    """Delete a single task by list index."""
     if 0 <= idx < len(st.session_state.tasks):
         st.session_state.tasks.pop(idx)
-        # If schedule was generated, keep UX consistent:
-        # the user can re-generate after deletions.
-        st.session_state.generated = False
+        st.session_state.generated = False  # so they regenerate after changes
+
 
 # -------------------------------------------------
 # PLANNER PAGE
 # -------------------------------------------------
 if page == "Planner":
-
     st.title("🗓️ Weekly Overload Planner")
     st.caption("Plan a realistic week, not a perfect one.")
 
@@ -162,24 +163,21 @@ if page == "Planner":
 
         st.markdown("</div>", unsafe_allow_html=True)
 
-        # TASK LIST + DELETE (NEW)
+        # TASK LIST + DELETE
         st.markdown('<div class="card">', unsafe_allow_html=True)
         st.subheader("Your Tasks")
 
         if not st.session_state.tasks:
             st.write("No tasks yet. Add one above.")
         else:
-            # Header row
             h1, h2, h3, h4, h5 = st.columns([3.2, 1.1, 1.2, 1.6, 1.0])
             h1.markdown("**Task**")
             h2.markdown("**Hours**")
             h3.markdown("**Diff**")
             h4.markdown("**Due**")
             h5.markdown("**Delete**")
-
             st.markdown("<hr/>", unsafe_allow_html=True)
 
-            # Rows
             for idx, t in enumerate(st.session_state.tasks):
                 c1, c2, c3, c4, c5 = st.columns([3.2, 1.1, 1.2, 1.6, 1.0])
                 c1.write(t["name"])
@@ -192,6 +190,7 @@ if page == "Planner":
                     st.rerun()
 
             st.markdown("<hr/>", unsafe_allow_html=True)
+
             if st.button("Clear All Tasks"):
                 st.session_state.tasks = []
                 st.session_state.generated = False
@@ -224,5 +223,4 @@ if page == "Planner":
                 st.markdown(f"### {d}")
                 if sched[d]:
                     for item in sched[d]:
-                        st.checkbox(f"{item[0]} ({item[1]}h)", key=f"{d}_{item[0]}")
-                else:
+                        # unique key to avoid co
