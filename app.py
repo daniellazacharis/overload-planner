@@ -236,43 +236,55 @@ def generate_pdf():
     doc = SimpleDocTemplate(
         buffer,
         pagesize=landscape(letter),
-        leftMargin=40,
-        rightMargin=40,
-        topMargin=40,
-        bottomMargin=40,
+        leftMargin=36,
+        rightMargin=36,
+        topMargin=36,
+        bottomMargin=36,
     )
 
     styles = getSampleStyleSheet()
     elements = []
 
-    elements.append(Paragraph("Weekly Overload Planner", styles["Title"]))
-    elements.append(Spacer(1, 20))
+    # Title
+    elements.append(Paragraph("<b>Weekly Schedule Overview</b>", styles["Title"]))
+    elements.append(Spacer(1, 18))
 
-    table_data = [["Day", "Planned Hours", "Available", "Status", "Tasks"]]
+    # Build 7-column structure
+    header_row = []
+    content_row = []
 
     for d in DAYS:
         items = st.session_state.schedule.get(d, [])
         state, planned, available, overload = analyze_day(d, items)
 
         if state == "REST":
-            status = "Rest Day"
-            tasks_text = "-"
+            workload = "Rest Day"
         elif state == "OVERLOAD":
-            status = f"Overloaded by {overload}h"
-            tasks_text = "\n".join([f"{t['task']} ({t['hours']}h)" for t in items])
+            workload = f"Overloaded by {overload}h"
         else:
-            status = status_label(planned)
-            tasks_text = "\n".join([f"{t['task']} ({t['hours']}h)" for t in items])
+            workload = status_label(planned)
 
-        table_data.append([d, f"{planned}h", f"{available}h", status, tasks_text])
+        header_text = f"<b>{d}</b><br/>{workload}<br/>{planned}h / {available}h"
 
-    table = Table(table_data, repeatRows=1, colWidths=[60, 90, 90, 140, 360])
+        if not items:
+            tasks_text = "-"
+        else:
+            tasks_text = "<br/>".join(
+                [f"• {t['task']} ({t['hours']}h)" for t in items]
+            )
+
+        header_row.append(Paragraph(header_text, styles["Normal"]))
+        content_row.append(Paragraph(tasks_text, styles["Normal"]))
+
+    # Table layout (2 rows: headers + content)
+    table_data = [header_row, content_row]
+
+    table = Table(table_data, colWidths=[100]*7)
 
     table.setStyle(TableStyle([
-        ("BACKGROUND", (0,0), (-1,0), colors.HexColor("#E7F1FA")),
-        ("GRID", (0,0), (-1,-1), 0.5, colors.grey),
+        ("GRID", (0,0), (-1,-1), 0.5, colors.HexColor("#D1D5DB")),
         ("VALIGN", (0,0), (-1,-1), "TOP"),
-        ("FONTNAME", (0,0), (-1,0), "Helvetica-Bold"),
+        ("BACKGROUND", (0,0), (-1,0), colors.HexColor("#F3F4F6")),
         ("PADDING", (0,0), (-1,-1), 8),
     ]))
 
