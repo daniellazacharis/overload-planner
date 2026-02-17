@@ -120,7 +120,8 @@ def generate_placeholder_schedule():
     # Reset schedule
     schedule = {d: [] for d in DAYS}
     remaining = {d: float(st.session_state.availability.get(d, 0.0)) for d in DAYS}
-
+    unscheduled_tasks = []
+    
     # Map weekday index to DAYS label
     def date_to_day_label(dt):
         return DAYS[dt.weekday()]
@@ -154,25 +155,36 @@ def generate_placeholder_schedule():
 
             current_day += timedelta(days=1)
 
-        # -------- If still unfinished: spillover --------
-        while hours_left > 0:
-            day_label = date_to_day_label(current_day)
+# -------- If still unfinished: spillover (max 7 future days) --------
+spill_days_checked = 0
 
-            if remaining[day_label] > 0:
-                chunk = min(hours_left, remaining[day_label])
+while hours_left > 0 and spill_days_checked < 7:
+    day_label = date_to_day_label(current_day)
 
-                schedule[day_label].append({
-                    "task": f"{task['name']} (Overdue)",
-                    "hours": round(chunk, 2),
-                    "difficulty": task["difficulty"],
-                    "due": task["due"],
-                })
+    if remaining[day_label] > 0:
+        chunk = min(hours_left, remaining[day_label])
 
-                remaining[day_label] -= chunk
-                hours_left -= chunk
+        schedule[day_label].append({
+            "task": f"{task['name']} (Overdue)",
+            "hours": round(chunk, 2),
+            "difficulty": task["difficulty"],
+            "due": task["due"],
+        })
 
-            current_day += timedelta(days=1)
+        remaining[day_label] -= chunk
+        hours_left -= chunk
 
+    current_day += timedelta(days=1)
+    spill_days_checked += 1
+
+    # If still unfinished after checking future days
+if hours_left > 0:
+    unscheduled_tasks.append({
+        "task": task["name"],
+        "hours": round(hours_left, 2)
+    })
+
+    st.session_state.unscheduled = unscheduled_tasks
     st.session_state.schedule = schedule
     st.session_state.generated = True
 
@@ -411,6 +423,17 @@ if page == "Planner":
                     mime="application/pdf",
                     use_container_width=True
                 )
+                # 🔥 Show unschedulable tasks
+                if "unscheduled" in st.session_state and st.session_state.unscheduled:
+                
+                    st.markdown("### ⚠️ Unscheduled Work")
+                
+                    for item in st.session_state.unscheduled:
+                        st.markdown(
+                            f"- **{item['task']}** — {item['hours']}h could not be placed"
+                        )
+                
+                    st.warning("Consider increasing availability or adjusting deadlines.")
 
 elif page == "About":
     st.subheader("About Weekly Overload Planner")
