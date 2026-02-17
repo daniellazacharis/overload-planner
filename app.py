@@ -207,7 +207,7 @@ if page == "Planner":
         
                 # -------- REST DAY --------
                 if state == "REST":
-                    st.markdown("💪 **~Rest Day~**")
+                    st.markdown("💪 **Rest Day**")
                     st.caption("Recovery improves productivity")
                     st.divider()
                     continue
