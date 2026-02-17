@@ -30,15 +30,23 @@ def add_task(name: str, hours: float, difficulty: str, due: date):
 
 def clear_tasks():
     st.session_state.tasks = []
+    reset_generation()
+
+def reset_generation():
     st.session_state.generated = False
     st.session_state.schedule = {d: [] for d in DAYS}
+
+def delete_task(index: int):
+    """Delete a single task by index (0-based)."""
+    if 0 <= index < len(st.session_state.tasks):
+        st.session_state.tasks.pop(index)
+    reset_generation()
 
 def generate_placeholder_schedule():
     """
     Placeholder schedule:
     - Sort tasks by due date then difficulty
     - Allocate tasks sequentially through the week based on daily availability
-    - This is intentionally simple; you can upgrade later.
     """
     tasks = sorted(
         st.session_state.tasks,
@@ -84,7 +92,7 @@ def generate_placeholder_schedule():
     st.session_state.generated = True
 
 def status_label(items):
-    """Light / Balanced / Heavy based on number of scheduled items & total hours."""
+    """Light / Balanced / Heavy based on total hours."""
     if not items:
         return "Free"
     total_hours = sum(x["hours"] for x in items)
@@ -99,7 +107,7 @@ def status_label(items):
 init_state()
 
 st.title("Weekly Overload Planner")
-st.caption('Plan a realistic week, not a perfect one.')
+st.caption("Plan a realistic week, not a perfect one.")
 
 page = st.sidebar.radio("Navigation", ["Planner", "About", "How It Works"], index=0)
 
@@ -113,7 +121,9 @@ if page == "Planner":
             task_name = st.text_input("Task Name", placeholder="e.g., Study Chapter 3")
             col1, col2 = st.columns(2)
             with col1:
-                task_hours = st.number_input("Estimated Time (hours)", min_value=0.0, step=0.5, value=1.0)
+                task_hours = st.number_input(
+                    "Estimated Time (hours)", min_value=0.0, step=0.5, value=1.0
+                )
             with col2:
                 task_difficulty = st.selectbox("Difficulty", ["Low", "Med", "High"], index=1)
 
@@ -125,6 +135,7 @@ if page == "Planner":
                     st.error("Please enter a task name.")
                 else:
                     add_task(task_name, task_hours, task_difficulty, task_due)
+                    reset_generation()
                     st.success("Task added!")
 
         st.divider()
@@ -147,11 +158,18 @@ if page == "Planner":
         if not st.session_state.tasks:
             st.info("No tasks yet. Add a few on the form above.")
         else:
-            # display a compact list
-            for idx, t in enumerate(st.session_state.tasks, start=1):
-                st.write(
-                    f"**{idx}. {t['name']}** — {t['hours']}h · {t['difficulty']} · due {t['due'].strftime('%b %d, %Y')}"
-                )
+            # display list with per-task delete buttons
+            for idx, t in enumerate(st.session_state.tasks):
+                row1, row2 = st.columns([0.88, 0.12])
+                with row1:
+                    st.write(
+                        f"**{idx+1}. {t['name']}** — {t['hours']}h · {t['difficulty']} · "
+                        f"due {t['due'].strftime('%b %d, %Y')}"
+                    )
+                with row2:
+                    if st.button("🗑️", key=f"del_{idx}", help="Delete this task", use_container_width=True):
+                        delete_task(idx)
+                        st.rerun()
 
             c1, c2 = st.columns([1, 1])
             with c1:
@@ -169,7 +187,6 @@ if page == "Planner":
         if not st.session_state.generated:
             st.info("Click **Generate My Week** to see a placeholder schedule for Mon–Sun.")
         else:
-            # Schedule display (placeholder allocation)
             for d in DAYS:
                 items = st.session_state.schedule.get(d, [])
                 st.markdown(f"### {d} — *Status: {status_label(items)}*")
