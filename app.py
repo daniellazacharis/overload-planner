@@ -274,30 +274,30 @@ if page == "Planner":
             st.success("Week Generated!")
 
             if st.session_state.generated:
-    
-        for d in DAYS:
-            items = st.session_state.schedule.get(d, [])
-    
-            state, planned, available, overload = analyze_day(d, items)
-            css_class, label = workload_classification(state, planned, available)
-    
-            # Card Start
-            st.markdown(f"""
-            <div class="day-card {css_class}">
-                <div class="day-title">{d}</div>
-                <div class="day-sub">{label} • {planned}h planned / {available}h available</div>
-            """, unsafe_allow_html=True)
-    
-            # Tasks
-            if state == "REST":
-                st.markdown("*No work scheduled — recovery day*", unsafe_allow_html=True)
-    
-            else:
-                for it in items:
-                    st.markdown(f"- **{it['task']}** ({it['hours']}h) · {it['difficulty']}")
-    
-            # Close Card
-            st.markdown("</div>", unsafe_allow_html=True)
+            
+                for d in DAYS:
+                    items = st.session_state.schedule.get(d, [])
+            
+                    state, planned, available, overload = analyze_day(d, items)
+                    css_class, label = workload_classification(state, planned, available)
+            
+                    # Card Start
+                    st.markdown(f"""
+                    <div class="day-card {css_class}">
+                        <div class="day-title">{d}</div>
+                        <div class="day-sub">{label} • {planned}h planned / {available}h available</div>
+                    """, unsafe_allow_html=True)
+            
+                    # Tasks
+                    if state == "REST":
+                        st.markdown("*No work scheduled — recovery day*", unsafe_allow_html=True)
+            
+                    else:
+                        for it in items:
+                            st.markdown(f"- **{it['task']}** ({it['hours']}h) · {it['difficulty']}")
+            
+                    # Close Card
+                    st.markdown("</div>", unsafe_allow_html=True)
 
                 # Show tasks grouped under the day
                 for it in items:
