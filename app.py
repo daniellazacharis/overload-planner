@@ -117,6 +117,18 @@ def status_label(total_hours):
         return "Balanced"
     return "Heavy"
 
+def analyze_day(day, items):
+    planned = round(sum(x["hours"] for x in items), 2)
+    available = float(st.session_state.availability.get(day, 0.0))
+
+    if planned == 0:
+        return "REST", planned, available, 0
+
+    if planned > available:
+        overload = round(planned - available, 2)
+        return "OVERLOAD", planned, available, overload
+
+    return "NORMAL", planned, available, 0
 
 # ---------- App ----------
 init_state()
@@ -188,18 +200,32 @@ if page == "Planner":
         if st.session_state.generated:
             for d in DAYS:
                 items = st.session_state.schedule.get(d, [])
-                total_hours = round(sum(x["hours"] for x in items), 2)
-
+        
+                state, planned, available, overload = analyze_day(d, items)
+        
                 st.markdown(f"### {d}")
-                st.write(f"**Total Planned Hours:** {total_hours}h")
-                st.write(f"**Status:** {status_label(total_hours)}")
-
-                if not items:
-                    st.write("▫️ No scheduled tasks")
+        
+                # -------- REST DAY --------
+                if state == "REST":
+                    st.markdown("💪 **~Rest Day~**")
+                    st.caption("Recovery improves productivity")
+                    st.divider()
+                    continue
+        
+                # -------- OVERLOAD --------
+                if state == "OVERLOAD":
+                    st.markdown(f"⚠️ **Overloaded — Over by {overload} hours**")
+                    st.caption(f"Planned: {planned}h / Available: {available}h")
+        
+                # -------- NORMAL DAY --------
                 else:
-                    for it in items:
-                        st.write(f"▢ **{it['task']}** ({it['hours']}h) · {it['difficulty']}")
-
+                    st.markdown(f"**{status_label(planned)} Day**")
+                    st.caption(f"{planned}h planned out of {available}h available")
+        
+                # Show tasks grouped under the day
+                for it in items:
+                    st.write(f"▢ **{it['task']}** ({it['hours']}h) · {it['difficulty']}")
+        
                 st.divider()
 
 elif page == "About":
