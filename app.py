@@ -1,6 +1,6 @@
 # app.py
 import streamlit as st
-from datetime import date, timedelta
+from datetime import date
 
 st.set_page_config(
     page_title="Weekly Planner",
@@ -11,18 +11,18 @@ st.set_page_config(
 
 DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
 
-# ---------- LIGHT CALM THEME ----------
+# =========================
+# CALM LIGHT THEME
+# =========================
 st.markdown("""
 <style>
 
-/* Background */
 .stApp {
     background-color: #F8F5F0;
 }
 
-/* Main headings */
 .big-title {
-    font-size: 42px;
+    font-size: 48px;
     font-weight: 600;
     text-align: center;
     color: #2F4F3E;
@@ -31,84 +31,80 @@ st.markdown("""
 
 .subtitle {
     text-align: center;
-    font-size: 18px;
-    color: #6E7F73;
-    margin-bottom: 40px;
+    font-size: 20px;
+    color: #5F6F65;
+    margin-bottom: 20px;
 }
 
-/* Section headers */
+.support-text {
+    text-align: center;
+    font-size: 16px;
+    color: #7A8B80;
+    max-width: 600px;
+    margin: 0 auto 40px auto;
+}
+
 .section-title {
     font-size: 22px;
     font-weight: 600;
     color: #2F4F3E;
-    margin-bottom: 4px;
 }
 
 .section-sub {
     font-size: 14px;
     color: #7A8B80;
-    margin-bottom: 18px;
+    margin-bottom: 15px;
 }
 
-/* TEXT INPUT */
-div[data-testid="stTextInput"] input {
-    background-color: #FFFFFF !important;
-    color: #2F4F3E !important;
-    border-radius: 10px;
-}
-
-/* NUMBER INPUT */
-div[data-testid="stNumberInput"] input {
-    background-color: #FFFFFF !important;
-    color: #2F4F3E !important;
-    border-radius: 10px;
-}
-
-/* SELECTBOX */
+div[data-testid="stTextInput"] input,
+div[data-testid="stNumberInput"] input,
 div[data-testid="stSelectbox"] > div {
     background-color: #FFFFFF !important;
     color: #2F4F3E !important;
+    border-radius: 10px;
 }
 
-/* Expander header */
 details > summary {
     color: #2F4F3E !important;
     font-weight: 500;
 }
 
-/* Button */
 .stButton > button {
     background-color: #7A9E7E;
     color: white;
-    border-radius: 20px;
-    padding: 12px 0px;
+    border-radius: 30px;
+    padding: 14px 0px;
     font-size: 16px;
 }
+
 .stButton > button:hover {
     background-color: #6A8C6F;
-}
-
-/* Make ALL body text readable */
-body, p, label, span, div {
-    color: #2F4F3E;
 }
 
 </style>
 """, unsafe_allow_html=True)
 
-# ---------- STATE ----------
+# =========================
+# STATE
+# =========================
 if "page" not in st.session_state:
     st.session_state.page = "Home"
+
 if "tasks" not in st.session_state:
     st.session_state.tasks = []
+
 if "blocked" not in st.session_state:
     st.session_state.blocked = {d: [] for d in DAYS}
+
 if "schedule" not in st.session_state:
     st.session_state.schedule = {d: [] for d in DAYS}
+
 if "generated" not in st.session_state:
     st.session_state.generated = False
 
-# ---------- TIME HELPERS ----------
+# =========================
+# HELPERS
+# =========================
 def decimal_to_time_str(value):
     hours = int(value)
     minutes = int((value - hours) * 60)
@@ -126,7 +122,6 @@ def generate_time_options():
             options.append((label, decimal))
     return options
 
-# ---------- AVAILABILITY ----------
 def compute_availability():
     availability = {}
     for d in DAYS:
@@ -137,7 +132,6 @@ def compute_availability():
         availability[d] = max(0, 16 - blocked_hours)
     return availability
 
-# ---------- SCHEDULING ----------
 def generate_schedule():
     schedule = {d: [] for d in DAYS}
     availability = compute_availability()
@@ -159,29 +153,14 @@ def generate_schedule():
     st.session_state.generated = True
 
 # =====================================================
-# ===================== ROUTING =======================
+# ===================== HOME PAGE =====================
 # =====================================================
 
 if st.session_state.page == "Home":
 
-    # ---------- HOME PAGE ----------
-    st.markdown("""
-    <div style='text-align: center; padding-top: 80px;'>
-
-        <div style='font-size: 48px; font-weight: 600; color: #2F4F3E; margin-bottom: 10px;'>
-            🌿 Welcome
-        </div>
-
-        <div style='font-size: 22px; color: #5F6F65; margin-bottom: 20px;'>
-            Build a week that feels balanced.
-        </div>
-
-        <div style='font-size: 16px; color: #7A8B80; max-width: 600px; margin: 0 auto 40px auto;'>
-            Plan your tasks around your real availability — not your ideal schedule.
-        </div>
-
-    </div>
-    """, unsafe_allow_html=True)
+    st.markdown("<div class='big-title'>🌿 Welcome</div>", unsafe_allow_html=True)
+    st.markdown("<div class='subtitle'>Build a week that feels balanced.</div>", unsafe_allow_html=True)
+    st.markdown("<div class='support-text'>Plan your tasks around your real availability — not your ideal schedule.</div>", unsafe_allow_html=True)
 
     col1, col2, col3 = st.columns([1,2,1])
 
@@ -190,23 +169,21 @@ if st.session_state.page == "Home":
             st.session_state.page = "Planning"
             st.rerun()
 
+# =====================================================
+# =================== PLANNING PAGE ===================
+# =====================================================
+
 elif st.session_state.page == "Planning":
 
     st.markdown("<div class='big-title'>Plan Your Week</div>", unsafe_allow_html=True)
-    st.markdown(
-        "<div class='subtitle'>Let’s organize your time in a way that actually feels doable.</div>",
-        unsafe_allow_html=True
-    )
+    st.markdown("<div class='subtitle'>Let’s organize your time in a way that actually feels doable.</div>", unsafe_allow_html=True)
 
     left, right = st.columns(2)
 
     # LEFT COLUMN
     with left:
         st.markdown("<div class='section-title'>Start with your to-do list</div>", unsafe_allow_html=True)
-        st.markdown(
-            "<div class='section-sub'>Add each task and estimate the time it might take.</div>",
-            unsafe_allow_html=True
-        )
+        st.markdown("<div class='section-sub'>Add each task and estimate the time it might take.</div>", unsafe_allow_html=True)
 
         name = st.text_input("Task Name")
 
@@ -228,10 +205,10 @@ elif st.session_state.page == "Planning":
         st.divider()
 
         for i, task in enumerate(st.session_state.tasks):
-            col1, col2 = st.columns([0.85,0.15])
-            with col1:
+            colA, colB = st.columns([0.85,0.15])
+            with colA:
                 st.write(f"{task['name']} — {task['hours']}h")
-            with col2:
+            with colB:
                 if st.button("🗑️", key=f"del_{i}"):
                     st.session_state.tasks.pop(i)
                     st.rerun()
@@ -239,10 +216,7 @@ elif st.session_state.page == "Planning":
     # RIGHT COLUMN
     with right:
         st.markdown("<div class='section-title'>When are you unavailable?</div>", unsafe_allow_html=True)
-        st.markdown(
-            "<div class='section-sub'>Block off work, class, sleep, or personal time.</div>",
-            unsafe_allow_html=True
-        )
+        st.markdown("<div class='section-sub'>Block off work, class, sleep, or personal time.</div>", unsafe_allow_html=True)
 
         time_options = generate_time_options()
         labels = [opt[0] for opt in time_options]
@@ -265,13 +239,13 @@ elif st.session_state.page == "Planning":
                         })
 
                 for j, block in enumerate(st.session_state.blocked[d]):
-                    colA, colB = st.columns([0.85,0.15])
-                    with colA:
+                    colC, colD = st.columns([0.85,0.15])
+                    with colC:
                         st.write(
                             f"{decimal_to_time_str(block['start'])} → "
                             f"{decimal_to_time_str(block['end'])}"
                         )
-                    with colB:
+                    with colD:
                         if st.button("❌", key=f"delblock_{d}_{j}"):
                             st.session_state.blocked[d].pop(j)
                             st.rerun()
