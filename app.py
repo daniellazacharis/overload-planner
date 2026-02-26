@@ -21,19 +21,20 @@ st.markdown("""
     background-color: #F8F5F0;
 }
 
+/* HOME STYLES */
 .big-title {
     font-size: 48px;
     font-weight: 600;
     text-align: center;
     color: #2F4F3E;
-    margin-bottom: 10px;
+    margin-bottom: 15px;
 }
 
 .subtitle {
     text-align: center;
-    font-size: 20px;
-    color: #5F6F65;
-    margin-bottom: 20px;
+    font-size: 22px;
+    color: #556B5D;
+    margin-bottom: 25px;
 }
 
 .support-text {
@@ -41,9 +42,11 @@ st.markdown("""
     font-size: 16px;
     color: #7A8B80;
     max-width: 600px;
-    margin: 0 auto 40px auto;
+    margin: 0 auto 50px auto;
+    line-height: 1.6;
 }
 
+/* SECTION HEADERS */
 .section-title {
     font-size: 22px;
     font-weight: 600;
@@ -56,6 +59,7 @@ st.markdown("""
     margin-bottom: 15px;
 }
 
+/* INPUTS */
 div[data-testid="stTextInput"] input,
 div[data-testid="stNumberInput"] input,
 div[data-testid="stSelectbox"] > div {
@@ -64,11 +68,13 @@ div[data-testid="stSelectbox"] > div {
     border-radius: 10px;
 }
 
+/* EXPANDER */
 details > summary {
     color: #2F4F3E !important;
     font-weight: 500;
 }
 
+/* BUTTON */
 .stButton > button {
     background-color: #7A9E7E;
     color: white;
@@ -85,7 +91,7 @@ details > summary {
 """, unsafe_allow_html=True)
 
 # =========================
-# STATE
+# SESSION STATE
 # =========================
 if "page" not in st.session_state:
     st.session_state.page = "Home"
@@ -153,67 +159,42 @@ def generate_schedule():
     st.session_state.generated = True
 
 # =====================================================
-# ===================== HOME PAGE =====================
+# HOME PAGE
 # =====================================================
 
 if st.session_state.page == "Home":
-    
-    st.markdown("""
-    <div style='
-        text-align: center;
-        padding-top: 120px;
-        padding-bottom: 120px;
-    '>
-    
-        <div style='
-            font-size: 48px;
-            font-weight: 600;
-            color: #2F4F3E;
-            margin-bottom: 15px;
-        '>
-            🌿 Welcome
-        </div>
-    
-        <div style='
-            font-size: 22px;
-            color: #556B5D;
-            margin-bottom: 25px;
-        '>
-            Build a week that feels balanced.
-        </div>
-    
-        <div style='
-            font-size: 16px;
-            color: #7A8B80;
-            max-width: 600px;
-            margin: 0 auto 50px auto;
-            line-height: 1.6;
-        '>
-            Plan your tasks around your real availability — not your ideal schedule.
-        </div>
-    
-    </div>
-    """, unsafe_allow_html=True)
-    
+
+    st.markdown("<div style='padding-top: 140px;'></div>", unsafe_allow_html=True)
+
+    st.markdown("<div class='big-title'>🌿 Welcome</div>", unsafe_allow_html=True)
+    st.markdown("<div class='subtitle'>Build a week that feels balanced.</div>", unsafe_allow_html=True)
+    st.markdown(
+        "<div class='support-text'>Plan your tasks around your real availability — not your ideal schedule.</div>",
+        unsafe_allow_html=True
+    )
+
     col1, col2, col3 = st.columns([1,2,1])
-    
+
     with col2:
         if st.button("Let’s Get Started 🌿", use_container_width=True):
             st.session_state.page = "Planning"
             st.rerun()
 
 # =====================================================
-# =================== PLANNING PAGE ===================
+# PLANNING PAGE
 # =====================================================
 
 elif st.session_state.page == "Planning":
 
     st.markdown("<div class='big-title'>Plan Your Week</div>", unsafe_allow_html=True)
-    st.markdown("<div class='subtitle'>Let’s organize your time in a way that actually feels doable.</div>", unsafe_allow_html=True)
+    st.markdown(
+        "<div class='subtitle'>Let’s organize your time in a way that actually feels doable.</div>",
+        unsafe_allow_html=True
+    )
 
     left, right = st.columns(2)
 
-    # LEFT COLUMN
+    # LEFT COLUMN — TASKS
     with left:
         st.markdown("<div class='section-title'>Start with your to-do list</div>", unsafe_allow_html=True)
         st.markdown("<div class='section-sub'>Add each task and estimate the time it might take.</div>", unsafe_allow_html=True)
@@ -246,7 +227,7 @@ elif st.session_state.page == "Planning":
                     st.session_state.tasks.pop(i)
                     st.rerun()
 
-    # RIGHT COLUMN
+    # RIGHT COLUMN — AVAILABILITY
     with right:
         st.markdown("<div class='section-title'>When are you unavailable?</div>", unsafe_allow_html=True)
         st.markdown("<div class='section-sub'>Block off work, class, sleep, or personal time.</div>", unsafe_allow_html=True)
