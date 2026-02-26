@@ -80,11 +80,12 @@ details > summary {
 .stButton > button {
     background-color: #7A9E7E;
     color: white;
-    border-radius: 12px;
+    border-radius: 20px;
+    padding: 12px 0px;
+    font-size: 16px;
 }
-
 .stButton > button:hover {
-    background-color: #678C6C;
+    background-color: #6A8C6F;
 }
 
 /* Make ALL body text readable */
@@ -161,19 +162,31 @@ def generate_schedule():
 # ===================== HOME PAGE =====================
 # =====================================================
 
-if st.session_state.page == "Home":
+# ---------- HOME PAGE ----------
+st.markdown("""
+<div style='text-align: center; padding-top: 80px;'>
 
-    st.markdown("<div class='big-title'>🌿 Welcome</div>", unsafe_allow_html=True)
-    st.markdown(
-        "<div class='subtitle'>Build a week that feels balanced.</div>",
-        unsafe_allow_html=True
-    )
+    <div style='font-size: 48px; font-weight: 600; color: #2F4F3E; margin-bottom: 10px;'>
+        🌿 Welcome
+    </div>
 
-    st.markdown("<div style='text-align:center;'>", unsafe_allow_html=True)
-    if st.button("Let’s Get Started"):
+    <div style='font-size: 22px; color: #5F6F65; margin-bottom: 20px;'>
+        Build a week that feels balanced.
+    </div>
+
+    <div style='font-size: 16px; color: #7A8B80; max-width: 600px; margin: 0 auto 40px auto;'>
+        Plan your tasks around your real availability — not your ideal schedule.
+    </div>
+
+</div>
+""", unsafe_allow_html=True)
+
+col1, col2, col3 = st.columns([1,2,1])
+
+with col2:
+    if st.button("Let’s Get Started 🌿", use_container_width=True):
         st.session_state.page = "Planning"
         st.rerun()
-    st.markdown("</div>", unsafe_allow_html=True)
 
 # =====================================================
 # =================== PLANNING PAGE ===================
