@@ -38,14 +38,8 @@ st.markdown("""
 .heavy { background-color: #FFF4E5; }
 .overloaded { background-color: #FDECEC; }
 
-.day-title {
-    font-weight: 700;
-    font-size: 20px;
-}
-.day-sub {
-    font-size: 14px;
-    margin-bottom: 10px;
-}
+.day-title { font-weight: 700; font-size: 20px; }
+.day-sub { font-size: 14px; margin-bottom: 10px; }
 .insight-box {
     background-color: #EEF2FF;
     padding: 15px;
@@ -70,14 +64,36 @@ def init_state():
 
 init_state()
 
-# ---------- AI AVAILABILITY CALCULATION ----------
+# ---------- TIME HELPERS ----------
+def decimal_to_time_str(value, format_type):
+    hours = int(value)
+    minutes = int(round((value - hours) * 60))
+
+    if format_type == "24-Hour":
+        return f"{hours:02d}:{minutes:02d}"
+    else:
+        suffix = "AM" if hours < 12 else "PM"
+        hour_12 = hours % 12
+        hour_12 = 12 if hour_12 == 0 else hour_12
+        return f"{hour_12}:{minutes:02d} {suffix}"
+
+def time_str_to_decimal(hour, minute, am_pm=None):
+    if am_pm:
+        if am_pm == "PM" and hour != 12:
+            hour += 12
+        if am_pm == "AM" and hour == 12:
+            hour = 0
+    return hour + minute / 60
+
+# ---------- AVAILABILITY ----------
 def compute_availability():
     availability = {}
     for d in DAYS:
         blocked_hours = sum(
-            (b["end"] - b["start"]) for b in st.session_state.blocked[d]
+            max(0, block["end"] - block["start"])
+            for block in st.session_state.blocked[d]
         )
-        availability[d] = max(0, 16 - blocked_hours)  # assume 8h sleep baseline
+        availability[d] = max(0, 16 - blocked_hours)  # assume 8h sleep
     return availability
 
 # ---------- TASK MANAGEMENT ----------
@@ -96,17 +112,7 @@ def delete_task(index):
         st.session_state.tasks.pop(index)
         st.session_state.generated = False
 
-# ---------- MULTI-BLOCK AVAILABILITY ----------
-def compute_availability():
-    availability = {}
-    for d in DAYS:
-        blocked_hours = 0
-        for block in st.session_state.blocked[d]:
-            blocked_hours += max(0, block["end"] - block["start"])
-        availability[d] = max(0, 16 - blocked_hours)  # assume 8h sleep baseline
-    return availability
-    
-# ---------- SCHEDULING + BALANCING ----------
+# ---------- SCHEDULING ----------
 def generate_schedule():
     today = date.today()
     schedule = {d: [] for d in DAYS}
@@ -145,98 +151,9 @@ def generate_schedule():
                 "hours": hours_left
             })
 
-    # ---- BALANCING PASS (minimize variance) ----
-    daily_loads = {
-        d: sum(t["hours"] * COGNITIVE_WEIGHT[t["difficulty"]] for t in schedule[d])
-        for d in DAYS
-    }
-
-    avg = statistics.mean(daily_loads.values())
-
-    for d in DAYS:
-        if daily_loads[d] > avg * 1.3:
-            for target in DAYS:
-                if daily_loads[target] < avg * 0.7 and schedule[d]:
-                    move = schedule[d].pop()
-                    schedule[target].append(move)
-                    break
-
     st.session_state.schedule = schedule
     st.session_state.unscheduled = unscheduled
     st.session_state.generated = True
-
-# ---------- STRESS SCORE ----------
-def compute_stress():
-    availability = compute_availability()
-    overload_hours = 0
-    cognitive_loads = []
-
-    for d in DAYS:
-        planned = sum(t["hours"] for t in st.session_state.schedule[d])
-        cognitive = sum(
-            t["hours"] * COGNITIVE_WEIGHT[t["difficulty"]]
-            for t in st.session_state.schedule[d]
-        )
-        cognitive_loads.append(cognitive)
-        if planned > availability[d]:
-            overload_hours += planned - availability[d]
-
-    variance = statistics.pvariance(cognitive_loads)
-    unscheduled_penalty = sum(u["hours"] for u in st.session_state.unscheduled)
-
-    score = overload_hours * 2 + variance + unscheduled_penalty * 3
-    return round(score, 2)
-
-# ---------- AI INSIGHT ----------
-def generate_insight():
-    availability = compute_availability()
-    overload_days = []
-    for d in DAYS:
-        planned = sum(t["hours"] for t in st.session_state.schedule[d])
-        if planned > availability[d]:
-            overload_days.append(d)
-
-    if overload_days:
-        return f"You are overloaded on {', '.join(overload_days)}. Consider redistributing tasks."
-    if st.session_state.unscheduled:
-        return "Some work could not be scheduled. Adjust deadlines or reduce scope."
-    return "Your workload is well balanced this week. Great planning!"
-
-# ---------- PDF ----------
-def generate_pdf():
-    buffer = BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=landscape(letter))
-    styles = getSampleStyleSheet()
-    elements = []
-
-    elements.append(Paragraph("<b>AI Cognitive Weekly Plan</b>", styles["Title"]))
-    elements.append(Spacer(1, 20))
-
-    data = []
-    headers = []
-    content = []
-
-    for d in DAYS:
-        planned = sum(t["hours"] for t in st.session_state.schedule[d])
-        headers.append(Paragraph(f"<b>{d}</b><br/>{planned}h", styles["Normal"]))
-        tasks = "<br/>".join(
-            [f"• {t['task']} ({t['hours']}h)" for t in st.session_state.schedule[d]]
-        ) or "-"
-        content.append(Paragraph(tasks, styles["Normal"]))
-
-    data.append(headers)
-    data.append(content)
-
-    table = Table(data, colWidths=[100]*7)
-    table.setStyle(TableStyle([
-        ("GRID", (0,0), (-1,-1), 0.5, colors.grey),
-        ("VALIGN", (0,0), (-1,-1), "TOP"),
-    ]))
-
-    elements.append(table)
-    doc.build(elements)
-    buffer.seek(0)
-    return buffer
 
 # ---------- UI ----------
 st.title("🧠 AI Cognitive Overload Planner")
@@ -245,8 +162,17 @@ st.caption("Constraint-based intelligent workload optimization")
 left, right = st.columns([1,1])
 
 with left:
-    st.subheader("Add Task")
 
+    # CLOCK FORMAT
+    st.subheader("Time Format")
+    clock_format = st.radio(
+        "Select Clock Format",
+        ["24-Hour", "12-Hour"],
+        horizontal=True
+    )
+
+    # ADD TASK
+    st.subheader("Add Task")
     name = st.text_input("Task Name")
     hours = st.number_input("Estimated Hours", 0.0, 20.0, 1.0)
     difficulty = st.selectbox("Difficulty", ["Low","Med","High"])
@@ -256,7 +182,7 @@ with left:
         add_task(name, hours, difficulty, due)
         st.success("Task added!")
 
-    # -------- SHOW LIVE TASK LIST --------
+    # SHOW TASKS
     st.divider()
     st.subheader("Your Tasks")
 
@@ -274,27 +200,49 @@ with left:
                     delete_task(i)
                     st.rerun()
 
-    # -------- MULTI-BLOCK TIME SYSTEM --------
+    # BLOCKED TIME
     st.divider()
-    st.subheader("Blocked Time (Multiple Blocks Allowed)")
+    st.subheader("Blocked Time (30-min Increments)")
 
     for d in DAYS:
         with st.expander(d):
 
-            # Add new block
-            col1, col2 = st.columns(2)
-            with col1:
+            if clock_format == "24-Hour":
                 start = st.number_input(
                     f"{d} Start",
-                    0.0, 24.0, 9.0,
+                    min_value=0.0,
+                    max_value=24.0,
+                    step=0.5,
+                    format="%.1f",
                     key=f"start_{d}"
                 )
-            with col2:
                 end = st.number_input(
                     f"{d} End",
-                    0.0, 24.0, 17.0,
+                    min_value=0.0,
+                    max_value=24.0,
+                    step=0.5,
+                    format="%.1f",
                     key=f"end_{d}"
                 )
+
+            else:
+                col1, col2, col3 = st.columns(3)
+                with col1:
+                    start_hour = st.selectbox(f"{d} Start Hour", list(range(1,13)), key=f"sh_{d}")
+                with col2:
+                    start_min = st.selectbox("Min", [0,30], key=f"sm_{d}")
+                with col3:
+                    start_ampm = st.selectbox("AM/PM", ["AM","PM"], key=f"sampm_{d}")
+                start = time_str_to_decimal(start_hour, start_min, start_ampm)
+
+                col4, col5, col6 = st.columns(3)
+                with col4:
+                    end_hour = st.selectbox(f"{d} End Hour", list(range(1,13)), key=f"eh_{d}")
+                with col5:
+                    end_min = st.selectbox("Min", [0,30], key=f"em_{d}")
+                with col6:
+                    end_ampm = st.selectbox("AM/PM", ["AM","PM"], key=f"eampm_{d}")
+                end = time_str_to_decimal(end_hour, end_min, end_ampm)
 
             if st.button(f"Add Block to {d}", key=f"add_block_{d}"):
                 if end > start:
@@ -304,15 +252,18 @@ with left:
                     })
                     st.success("Block added.")
                 else:
-                    st.error("End time must be greater than start time.")
+                    st.error("End must be after start.")
 
-            # Show existing blocks
+            # Display Blocks
             if st.session_state.blocked[d]:
                 st.markdown("**Current Blocks:**")
                 for j, block in enumerate(st.session_state.blocked[d]):
                     colA, colB = st.columns([0.85,0.15])
                     with colA:
-                        st.write(f"{block['start']} → {block['end']}")
+                        st.write(
+                            f"{decimal_to_time_str(block['start'], clock_format)} → "
+                            f"{decimal_to_time_str(block['end'], clock_format)}"
+                        )
                     with colB:
                         if st.button("❌", key=f"del_block_{d}_{j}"):
                             st.session_state.blocked[d].pop(j)
@@ -349,14 +300,3 @@ with right:
                 st.write(f"- {t['task']} ({t['hours']}h · {t['difficulty']})")
 
             st.markdown("</div>", unsafe_allow_html=True)
-
-        stress = compute_stress()
-        st.markdown(f"### 🧠 Weekly Stress Score: {stress}")
-
-        st.markdown(f"<div class='insight-box'>💡 {generate_insight()}</div>", unsafe_allow_html=True)
-
-        if st.session_state.unscheduled:
-            st.warning("Some tasks could not be scheduled.")
-
-        pdf = generate_pdf()
-        st.download_button("📄 Export PDF", pdf, "ai_weekly_plan.pdf")
