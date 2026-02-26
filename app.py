@@ -1,7 +1,6 @@
 # app.py
 import streamlit as st
 from datetime import date, timedelta
-import time
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib import colors
@@ -40,12 +39,6 @@ st.markdown("""
 
 .day-title { font-weight: 700; font-size: 20px; }
 .day-sub { font-size: 14px; margin-bottom: 10px; }
-.insight-box {
-    background-color: #EEF2FF;
-    padding: 15px;
-    border-radius: 15px;
-    margin-top: 20px;
-}
 </style>
 """, unsafe_allow_html=True)
 
@@ -85,6 +78,15 @@ def time_str_to_decimal(hour, minute, am_pm=None):
             hour = 0
     return hour + minute / 60
 
+def generate_time_options(format_type):
+    options = []
+    for hour in range(24):
+        for minute in [0, 30]:
+            decimal = hour + minute / 60
+            label = decimal_to_time_str(decimal, format_type)
+            options.append((label, decimal))
+    return options
+
 # ---------- AVAILABILITY ----------
 def compute_availability():
     availability = {}
@@ -93,7 +95,7 @@ def compute_availability():
             max(0, block["end"] - block["start"])
             for block in st.session_state.blocked[d]
         )
-        availability[d] = max(0, 16 - blocked_hours)  # assume 8h sleep
+        availability[d] = max(0, 16 - blocked_hours)
     return availability
 
 # ---------- TASK MANAGEMENT ----------
@@ -204,45 +206,27 @@ with left:
     st.divider()
     st.subheader("Blocked Time (30-min Increments)")
 
+    time_options = generate_time_options(clock_format)
+    labels = [opt[0] for opt in time_options]
+    mapping = dict(time_options)
+
     for d in DAYS:
         with st.expander(d):
 
-            if clock_format == "24-Hour":
-                start = st.number_input(
-                    f"{d} Start",
-                    min_value=0.0,
-                    max_value=24.0,
-                    step=0.5,
-                    format="%.1f",
-                    key=f"start_{d}"
-                )
-                end = st.number_input(
-                    f"{d} End",
-                    min_value=0.0,
-                    max_value=24.0,
-                    step=0.5,
-                    format="%.1f",
-                    key=f"end_{d}"
-                )
+            start_label = st.selectbox(
+                f"{d} Start",
+                labels,
+                key=f"start_{d}"
+            )
 
-            else:
-                col1, col2, col3 = st.columns(3)
-                with col1:
-                    start_hour = st.selectbox(f"{d} Start Hour", list(range(1,13)), key=f"sh_{d}")
-                with col2:
-                    start_min = st.selectbox("Min", [0,30], key=f"sm_{d}")
-                with col3:
-                    start_ampm = st.selectbox("AM/PM", ["AM","PM"], key=f"sampm_{d}")
-                start = time_str_to_decimal(start_hour, start_min, start_ampm)
+            end_label = st.selectbox(
+                f"{d} End",
+                labels,
+                key=f"end_{d}"
+            )
 
-                col4, col5, col6 = st.columns(3)
-                with col4:
-                    end_hour = st.selectbox(f"{d} End Hour", list(range(1,13)), key=f"eh_{d}")
-                with col5:
-                    end_min = st.selectbox("Min", [0,30], key=f"em_{d}")
-                with col6:
-                    end_ampm = st.selectbox("AM/PM", ["AM","PM"], key=f"eampm_{d}")
-                end = time_str_to_decimal(end_hour, end_min, end_ampm)
+            start = mapping[start_label]
+            end = mapping[end_label]
 
             if st.button(f"Add Block to {d}", key=f"add_block_{d}"):
                 if end > start:
