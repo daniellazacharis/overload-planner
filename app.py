@@ -7,441 +7,286 @@ from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import letter, landscape
 from io import BytesIO
+import statistics
 
 st.set_page_config(
-    page_title="Weekly Overload Planner",
-    page_icon="🗓️",
+    page_title="AI Cognitive Overload Planner",
+    page_icon="🧠",
     layout="wide",
-    initial_sidebar_state="collapsed"   # 👈 key line
+    initial_sidebar_state="collapsed"
 )
 
 DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
 DIFFICULTY_ORDER = {"Low": 1, "Med": 2, "High": 3}
+COGNITIVE_WEIGHT = {"Low": 1, "Med": 1.5, "High": 2}
 
-# ---------- CALM UI THEME ----------
+# ---------- STRESS-FREE COLOR SYSTEM ----------
 st.markdown("""
 <style>
-
-/* Base readable text inside cards */
 .day-card {
-    border-radius: 18px;
-    padding: 18px 18px 10px 18px;
+    border-radius: 20px;
+    padding: 20px;
     margin-bottom: 18px;
-    box-shadow: 0px 4px 14px rgba(0,0,0,0.06);
-    border: 1px solid rgba(0,0,0,0.05);
-    color: #EDE8D0 !important;   /* DARK TEXT */
+    box-shadow: 0px 6px 20px rgba(0,0,0,0.06);
+    transition: transform 0.2s ease;
 }
+.day-card:hover { transform: scale(1.01); }
 
-/* FORCE ALL TEXT INSIDE CARDS TO BE DARK */
-.day-card * {
-    color: #1F2933 !important;
-}
-
-/* Workload colors */
-.light { background-color: #E8F5EC; }        
-.moderate { background-color: #E7F1FA; }     
-.heavy { background-color: #FFF4E5; }        
-.overloaded { background-color: #FDECEC; }   
-.rest { background-color: #F1ECFF; }         
+.rest { background-color: #F3E8FF; }
+.light { background-color: #E6F4EA; }
+.moderate { background-color: #E7F0FA; }
+.heavy { background-color: #FFF4E5; }
+.overloaded { background-color: #FDECEC; }
 
 .day-title {
     font-weight: 700;
     font-size: 20px;
-    margin-bottom: 4px;
-    color: #0F172A !important;
 }
-
 .day-sub {
     font-size: 14px;
     margin-bottom: 10px;
-    color: #334155 !important;
 }
-
-/* Make bullet text readable */
-.day-card li, .day-card p, .day-card span {
-    color: #1F2933 !important;
+.insight-box {
+    background-color: #EEF2FF;
+    padding: 15px;
+    border-radius: 15px;
+    margin-top: 20px;
 }
-
 </style>
 """, unsafe_allow_html=True)
 
-# ---------- Helpers ----------
+# ---------- STATE ----------
 def init_state():
     if "tasks" not in st.session_state:
         st.session_state.tasks = []
-    if "generated" not in st.session_state:
-        st.session_state.generated = False
-    if "availability" not in st.session_state:
-        st.session_state.availability = {
-            "Mon": 2.0, "Tue": 2.0, "Wed": 2.0,
-            "Thu": 2.0, "Fri": 2.0, "Sat": 2.0, "Sun": 2.0
-        }
+    if "blocked" not in st.session_state:
+        st.session_state.blocked = {d: [] for d in DAYS}
     if "schedule" not in st.session_state:
         st.session_state.schedule = {d: [] for d in DAYS}
+    if "generated" not in st.session_state:
+        st.session_state.generated = False
+    if "unscheduled" not in st.session_state:
+        st.session_state.unscheduled = []
 
-def close_sidebar():
-    st.markdown("""
-        <script>
-        const sidebar = window.parent.document.querySelector('[data-testid="stSidebar"]');
-        if (sidebar) { sidebar.setAttribute("aria-expanded", "false"); }
-        </script>
-    """, unsafe_allow_html=True)
+init_state()
 
-def add_task(name: str, hours: float, difficulty: str, due: date):
-    st.session_state.tasks.append(
-        {
-            "name": name.strip(),
-            "hours": float(hours),
-            "difficulty": difficulty,
-            "due": due,
-        }
-    )
+# ---------- AI AVAILABILITY CALCULATION ----------
+def compute_availability():
+    availability = {}
+    for d in DAYS:
+        blocked_hours = sum(
+            (b["end"] - b["start"]) for b in st.session_state.blocked[d]
+        )
+        availability[d] = max(0, 16 - blocked_hours)  # assume 8h sleep baseline
+    return availability
 
-def reset_generation():
-    st.session_state.generated = False
-    st.session_state.schedule = {d: [] for d in DAYS}
+# ---------- TASK MANAGEMENT ----------
+def add_task(name, hours, difficulty, due):
+    st.session_state.tasks.append({
+        "name": name,
+        "hours": hours,
+        "difficulty": difficulty,
+        "due": due
+    })
 
-def delete_task(index: int):
-    if 0 <= index < len(st.session_state.tasks):
-        st.session_state.tasks.pop(index)
-    reset_generation()
+def delete_task(index):
+    st.session_state.tasks.pop(index)
 
-def generate_placeholder_schedule():
-    """
-    REAL scheduling algorithm:
-    - Respects daily availability
-    - Prioritizes earliest due date
-    - Splits tasks across days
-    - Detects unschedulable work
-    """
-
+# ---------- SCHEDULING + BALANCING ----------
+def generate_schedule():
     today = date.today()
-
     schedule = {d: [] for d in DAYS}
-    remaining = {d: float(st.session_state.availability.get(d, 0.0)) for d in DAYS}
-    unscheduled_tasks = []
-
-    def date_to_day_label(dt):
-        return DAYS[dt.weekday()]
+    availability = compute_availability()
+    remaining = availability.copy()
+    unscheduled = []
 
     tasks = sorted(
         st.session_state.tasks,
-        key=lambda t: (t["due"], DIFFICULTY_ORDER.get(t["difficulty"], 99)),
+        key=lambda t: (t["due"], DIFFICULTY_ORDER[t["difficulty"]])
     )
+
+    def label(dt):
+        return DAYS[dt.weekday()]
 
     for task in tasks:
-        hours_left = float(task["hours"])
-        current_day = today
+        hours_left = task["hours"]
+        current = today
 
-        # -------- Schedule BEFORE due date --------
-        while hours_left > 0 and current_day <= task["due"]:
-            day_label = date_to_day_label(current_day)
-
-            if remaining[day_label] > 0:
-                chunk = min(hours_left, remaining[day_label])
-
-                schedule[day_label].append({
+        while hours_left > 0 and current <= task["due"]:
+            d = label(current)
+            if remaining[d] > 0:
+                chunk = min(hours_left, remaining[d])
+                schedule[d].append({
                     "task": task["name"],
-                    "hours": round(chunk, 2),
-                    "difficulty": task["difficulty"],
-                    "due": task["due"],
+                    "hours": chunk,
+                    "difficulty": task["difficulty"]
                 })
-
-                remaining[day_label] -= chunk
+                remaining[d] -= chunk
                 hours_left -= chunk
+            current += timedelta(days=1)
 
-            current_day += timedelta(days=1)
-
-        # -------- Spillover (max 7 future days) --------
-        spill_days_checked = 0
-
-        while hours_left > 0 and spill_days_checked < 7:
-            day_label = date_to_day_label(current_day)
-
-            if remaining[day_label] > 0:
-                chunk = min(hours_left, remaining[day_label])
-
-                schedule[day_label].append({
-                    "task": f"{task['name']} (Overdue)",
-                    "hours": round(chunk, 2),
-                    "difficulty": task["difficulty"],
-                    "due": task["due"],
-                })
-
-                remaining[day_label] -= chunk
-                hours_left -= chunk
-
-            current_day += timedelta(days=1)
-            spill_days_checked += 1
-
-        # -------- If still unfinished --------
         if hours_left > 0:
-            unscheduled_tasks.append({
+            unscheduled.append({
                 "task": task["name"],
-                "hours": round(hours_left, 2)
+                "hours": hours_left
             })
 
-    # Save results
+    # ---- BALANCING PASS (minimize variance) ----
+    daily_loads = {
+        d: sum(t["hours"] * COGNITIVE_WEIGHT[t["difficulty"]] for t in schedule[d])
+        for d in DAYS
+    }
+
+    avg = statistics.mean(daily_loads.values())
+
+    for d in DAYS:
+        if daily_loads[d] > avg * 1.3:
+            for target in DAYS:
+                if daily_loads[target] < avg * 0.7 and schedule[d]:
+                    move = schedule[d].pop()
+                    schedule[target].append(move)
+                    break
+
     st.session_state.schedule = schedule
-    st.session_state.unscheduled = unscheduled_tasks
+    st.session_state.unscheduled = unscheduled
     st.session_state.generated = True
 
-def status_label(total_hours):
-    if total_hours == 0:
-        return "Free"
-    if total_hours <= 2:
-        return "Light"
-    if total_hours <= 4:
-        return "Balanced"
-    return "Heavy"
+# ---------- STRESS SCORE ----------
+def compute_stress():
+    availability = compute_availability()
+    overload_hours = 0
+    cognitive_loads = []
 
-def analyze_day(day, items):
-    planned = round(sum(x["hours"] for x in items), 2)
-    available = float(st.session_state.availability.get(day, 0.0))
+    for d in DAYS:
+        planned = sum(t["hours"] for t in st.session_state.schedule[d])
+        cognitive = sum(
+            t["hours"] * COGNITIVE_WEIGHT[t["difficulty"]]
+            for t in st.session_state.schedule[d]
+        )
+        cognitive_loads.append(cognitive)
+        if planned > availability[d]:
+            overload_hours += planned - availability[d]
 
-    if planned == 0:
-        return "REST", planned, available, 0
+    variance = statistics.pvariance(cognitive_loads)
+    unscheduled_penalty = sum(u["hours"] for u in st.session_state.unscheduled)
 
-    if planned > available:
-        overload = round(planned - available, 2)
-        return "OVERLOAD", planned, available, overload
+    score = overload_hours * 2 + variance + unscheduled_penalty * 3
+    return round(score, 2)
 
-    return "NORMAL", planned, available, 0
+# ---------- AI INSIGHT ----------
+def generate_insight():
+    availability = compute_availability()
+    overload_days = []
+    for d in DAYS:
+        planned = sum(t["hours"] for t in st.session_state.schedule[d])
+        if planned > availability[d]:
+            overload_days.append(d)
 
-def workload_classification(state, planned, available):
-    if state == "REST":
-        return "rest", "💪 Rest Day"
+    if overload_days:
+        return f"You are overloaded on {', '.join(overload_days)}. Consider redistributing tasks."
+    if st.session_state.unscheduled:
+        return "Some work could not be scheduled. Adjust deadlines or reduce scope."
+    return "Your workload is well balanced this week. Great planning!"
 
-    if state == "OVERLOAD":
-        return "overloaded", f"⚠️ Overloaded by {round(planned-available,2)}h"
-
-    ratio = planned / available if available > 0 else 0
-
-    if ratio <= 0.4:
-        return "light", "Light Workload"
-    elif ratio <= 0.75:
-        return "moderate", "Moderate Workload"
-    else:
-        return "heavy", "Heavy Workload"
-
+# ---------- PDF ----------
 def generate_pdf():
     buffer = BytesIO()
-
-    doc = SimpleDocTemplate(
-        buffer,
-        pagesize=landscape(letter),
-        leftMargin=36,
-        rightMargin=36,
-        topMargin=36,
-        bottomMargin=36,
-    )
-
+    doc = SimpleDocTemplate(buffer, pagesize=landscape(letter))
     styles = getSampleStyleSheet()
     elements = []
 
-    # Title
-    elements.append(Paragraph("<b>Weekly Schedule Overview</b>", styles["Title"]))
-    elements.append(Spacer(1, 18))
+    elements.append(Paragraph("<b>AI Cognitive Weekly Plan</b>", styles["Title"]))
+    elements.append(Spacer(1, 20))
 
-    # Build 7-column structure
-    header_row = []
-    content_row = []
+    data = []
+    headers = []
+    content = []
 
     for d in DAYS:
-        items = st.session_state.schedule.get(d, [])
-        state, planned, available, overload = analyze_day(d, items)
+        planned = sum(t["hours"] for t in st.session_state.schedule[d])
+        headers.append(Paragraph(f"<b>{d}</b><br/>{planned}h", styles["Normal"]))
+        tasks = "<br/>".join(
+            [f"• {t['task']} ({t['hours']}h)" for t in st.session_state.schedule[d]]
+        ) or "-"
+        content.append(Paragraph(tasks, styles["Normal"]))
 
-        if state == "REST":
-            workload = "Rest Day"
-        elif state == "OVERLOAD":
-            workload = f"Overloaded by {overload}h"
-        else:
-            workload = status_label(planned)
+    data.append(headers)
+    data.append(content)
 
-        header_text = f"<b>{d}</b><br/>{workload}<br/>{planned}h / {available}h"
-
-        if not items:
-            tasks_text = "-"
-        else:
-            tasks_text = "<br/>".join(
-                [f"• {t['task']} ({t['hours']}h)" for t in items]
-            )
-
-        header_row.append(Paragraph(header_text, styles["Normal"]))
-        content_row.append(Paragraph(tasks_text, styles["Normal"]))
-
-    # Table layout (2 rows: headers + content)
-    table_data = [header_row, content_row]
-
-    table = Table(table_data, colWidths=[100]*7)
-
+    table = Table(data, colWidths=[100]*7)
     table.setStyle(TableStyle([
-        ("GRID", (0,0), (-1,-1), 0.5, colors.HexColor("#D1D5DB")),
+        ("GRID", (0,0), (-1,-1), 0.5, colors.grey),
         ("VALIGN", (0,0), (-1,-1), "TOP"),
-        ("BACKGROUND", (0,0), (-1,0), colors.HexColor("#F3F4F6")),
-        ("PADDING", (0,0), (-1,-1), 8),
     ]))
 
     elements.append(table)
     doc.build(elements)
-
     buffer.seek(0)
     return buffer
 
-# ---------- App ----------
-init_state()
+# ---------- UI ----------
+st.title("🧠 AI Cognitive Overload Planner")
+st.caption("Constraint-based intelligent workload optimization")
 
-st.title("Weekly Overload Planner")
-st.caption("Plan a realistic week, not a perfect one.")
+left, right = st.columns([1,1])
 
-with st.sidebar:
-    st.title("🗓️ Menu")
-    st.caption("Navigate the planner")
+with left:
+    st.subheader("Add Task")
+    name = st.text_input("Task Name")
+    hours = st.number_input("Estimated Hours", 0.0, 20.0, 1.0)
+    difficulty = st.selectbox("Difficulty", ["Low","Med","High"])
+    due = st.date_input("Due Date", value=date.today()+timedelta(days=2))
+    if st.button("Add Task"):
+        add_task(name, hours, difficulty, due)
 
-    page = st.radio(
-        "",
-        ["Planner", "About", "How It Works"],
-        label_visibility="collapsed"
-    )
+    st.divider()
+    st.subheader("Blocked Time (System Infers Availability)")
+    for d in DAYS:
+        with st.expander(d):
+            start = st.number_input(f"{d} Start Hour", 0.0, 24.0, 9.0, key=f"s{d}")
+            end = st.number_input(f"{d} End Hour", 0.0, 24.0, 17.0, key=f"e{d}")
+            if st.button(f"Block {d}", key=f"b{d}"):
+                st.session_state.blocked[d].append({"start": start, "end": end})
 
-close_sidebar()
+with right:
+    if st.button("✨ Generate Intelligent Week"):
+        generate_schedule()
+        st.success("Optimized Schedule Generated")
 
-if page == "Planner":
-    left, right = st.columns([1, 1])
+    if st.session_state.generated:
+        availability = compute_availability()
 
-    # ---------------- LEFT PANEL ----------------
-    with left:
-        st.subheader("Add Task")
+        for d in DAYS:
+            planned = sum(t["hours"] for t in st.session_state.schedule[d])
+            ratio = planned / availability[d] if availability[d] > 0 else 0
 
-        with st.form("add_task_form", clear_on_submit=True):
-            task_name = st.text_input("Task Name")
-            col1, col2 = st.columns(2)
-            with col1:
-                task_hours = st.number_input("Estimated Time (hours)", min_value=0.0, step=0.5, value=1.0)
-            with col2:
-                task_difficulty = st.selectbox("Difficulty", ["Low", "Med", "High"], index=1)
+            if ratio == 0:
+                css = "rest"
+            elif ratio <= 0.4:
+                css = "light"
+            elif ratio <= 0.75:
+                css = "moderate"
+            elif ratio <= 1:
+                css = "heavy"
+            else:
+                css = "overloaded"
 
-            task_due = st.date_input("Due Date", value=date.today() + timedelta(days=2))
+            st.markdown(f"<div class='day-card {css}'>", unsafe_allow_html=True)
+            st.markdown(f"<div class='day-title'>{d}</div>", unsafe_allow_html=True)
+            st.markdown(f"<div class='day-sub'>{planned}h planned / {availability[d]}h available</div>", unsafe_allow_html=True)
 
-            submitted = st.form_submit_button("➕ Add Task")
-            if submitted:
-                if not task_name.strip():
-                    st.error("Please enter a task name.")
-                else:
-                    add_task(task_name, task_hours, task_difficulty, task_due)
-                    reset_generation()
-                    st.success("Task added!")
+            for t in st.session_state.schedule[d]:
+                st.write(f"- {t['task']} ({t['hours']}h · {t['difficulty']})")
 
-        st.divider()
-        st.subheader("Your Tasks")
+            st.markdown("</div>", unsafe_allow_html=True)
 
-        if not st.session_state.tasks:
-            st.info("No tasks yet.")
-        else:
-            for idx, t in enumerate(st.session_state.tasks):
-                row1, row2 = st.columns([0.85, 0.15])
-                with row1:
-                    st.write(
-                        f"**{t['name']}** — {t['hours']}h · {t['difficulty']} · due {t['due'].strftime('%b %d')}"
-                    )
-                with row2:
-                    if st.button("🗑️", key=f"del_{idx}"):
-                        delete_task(idx)
-                        st.rerun()
+        stress = compute_stress()
+        st.markdown(f"### 🧠 Weekly Stress Score: {stress}")
 
-            # ---------------- DAILY AVAILABILITY ----------------
-        st.divider()
-        st.subheader("Daily Availability")
-        
-        st.caption("How many hours can you realistically work each day?")
-        
-        # 7 columns across
-        day_cols = st.columns(7)
-        
-        for i, d in enumerate(DAYS):
-            with day_cols[i]:
-                new_val = st.number_input(
-                    d,
-                    min_value=0.0,
-                    max_value=24.0,
-                    step=0.5,
-                    value=float(st.session_state.availability[d]),
-                    key=f"availability_{d}"
-                )
-        
-                # update state live
-                st.session_state.availability[d] = new_val
-                
-    # ---------------- RIGHT PANEL ----------------
-    with right:
-        st.subheader("Your Balanced Week")
-        
-        generate = st.button("✨ Generate My Week", type="primary", use_container_width=True)
-        
-        if generate:
-            progress = st.progress(0)
-            for i in range(101):
-                time.sleep(0.05)
-                progress.progress(i)
-        
-            generate_placeholder_schedule()
-            st.success("Week Generated!")
-        
-        # 🔥 THIS MUST BE OUTSIDE THE BUTTON BLOCK
-        if st.session_state.generated:
-        
-            for d in DAYS:
-                items = st.session_state.schedule.get(d, [])
-        
-                state, planned, available, overload = analyze_day(d, items)
-                css_class, label = workload_classification(state, planned, available)
-        
-                st.markdown(f"""
-                <div class="day-card {css_class}">
-                    <div class="day-title">{d}</div>
-                    <div class="day-sub">{label} • {planned}h planned / {available}h available</div>
-                """, unsafe_allow_html=True)
-        
-                if state == "REST":
-                    st.markdown("*No work scheduled — recovery day*", unsafe_allow_html=True)
-                else:
-                    for it in items:
-                        st.markdown(f"- **{it['task']}** ({it['hours']}h) · {it['difficulty']}")
-        
-                st.markdown("</div>", unsafe_allow_html=True)
-        
-            st.divider()
-        
-                # 🔥 Put PDF export HERE too
-            pdf = generate_pdf()
-            st.download_button(
-                label="📄 Export Week as PDF",
-                data=pdf,
-                file_name="weekly_plan.pdf",
-                mime="application/pdf",
-                use_container_width=True
-            )
-            # 🔥 Show unschedulable tasks
-            if "unscheduled" in st.session_state and st.session_state.unscheduled:
-                
-                st.markdown("### ⚠️ Unscheduled Work")
-                
-                for item in st.session_state.unscheduled:
-                    st.markdown(
-                        f"- **{item['task']}** — {item['hours']}h could not be placed"
-                    )
-                
-                st.warning("Consider increasing availability or adjusting deadlines.")
+        st.markdown(f"<div class='insight-box'>💡 {generate_insight()}</div>", unsafe_allow_html=True)
 
-elif page == "About":
-    st.subheader("About Weekly Overload Planner")
-    st.write("A tool to turn chaotic task lists into structured weekly plans.")
+        if st.session_state.unscheduled:
+            st.warning("Some tasks could not be scheduled.")
 
-elif page == "How It Works":
-    st.subheader("How It Works")
-    st.write("""
-1. Add tasks with hours, difficulty, and due date.
-2. Click **Generate My Week**.
-3. The system sorts by due date and difficulty.
-4. Tasks are allocated across Mon–Sun based on available time.
-""")
+        pdf = generate_pdf()
+        st.download_button("📄 Export PDF", pdf, "ai_weekly_plan.pdf")
