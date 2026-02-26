@@ -159,38 +159,36 @@ def generate_schedule():
     st.session_state.generated = True
 
 # =====================================================
-# ===================== HOME PAGE =====================
+# ===================== ROUTING =======================
 # =====================================================
 
-# ---------- HOME PAGE ----------
-st.markdown("""
-<div style='text-align: center; padding-top: 80px;'>
+if st.session_state.page == "Home":
 
-    <div style='font-size: 48px; font-weight: 600; color: #2F4F3E; margin-bottom: 10px;'>
-        🌿 Welcome
+    # ---------- HOME PAGE ----------
+    st.markdown("""
+    <div style='text-align: center; padding-top: 80px;'>
+
+        <div style='font-size: 48px; font-weight: 600; color: #2F4F3E; margin-bottom: 10px;'>
+            🌿 Welcome
+        </div>
+
+        <div style='font-size: 22px; color: #5F6F65; margin-bottom: 20px;'>
+            Build a week that feels balanced.
+        </div>
+
+        <div style='font-size: 16px; color: #7A8B80; max-width: 600px; margin: 0 auto 40px auto;'>
+            Plan your tasks around your real availability — not your ideal schedule.
+        </div>
+
     </div>
+    """, unsafe_allow_html=True)
 
-    <div style='font-size: 22px; color: #5F6F65; margin-bottom: 20px;'>
-        Build a week that feels balanced.
-    </div>
+    col1, col2, col3 = st.columns([1,2,1])
 
-    <div style='font-size: 16px; color: #7A8B80; max-width: 600px; margin: 0 auto 40px auto;'>
-        Plan your tasks around your real availability — not your ideal schedule.
-    </div>
-
-</div>
-""", unsafe_allow_html=True)
-
-col1, col2, col3 = st.columns([1,2,1])
-
-with col2:
-    if st.button("Let’s Get Started 🌿", use_container_width=True):
-        st.session_state.page = "Planning"
-        st.rerun()
-
-# =====================================================
-# =================== PLANNING PAGE ===================
-# =====================================================
+    with col2:
+        if st.button("Let’s Get Started 🌿", use_container_width=True):
+            st.session_state.page = "Planning"
+            st.rerun()
 
 elif st.session_state.page == "Planning":
 
@@ -202,7 +200,7 @@ elif st.session_state.page == "Planning":
 
     left, right = st.columns(2)
 
-    # ---------------- LEFT: ADD TASKS ----------------
+    # LEFT COLUMN
     with left:
         st.markdown("<div class='section-title'>Start with your to-do list</div>", unsafe_allow_html=True)
         st.markdown(
@@ -238,7 +236,7 @@ elif st.session_state.page == "Planning":
                     st.session_state.tasks.pop(i)
                     st.rerun()
 
-    # ---------------- RIGHT: DAILY AVAILABILITY ----------------
+    # RIGHT COLUMN
     with right:
         st.markdown("<div class='section-title'>When are you unavailable?</div>", unsafe_allow_html=True)
         st.markdown(
@@ -253,17 +251,8 @@ elif st.session_state.page == "Planning":
         for d in DAYS:
             with st.expander(d):
 
-                start_label = st.selectbox(
-                    f"{d} Start",
-                    labels,
-                    key=f"start_{d}"
-                )
-
-                end_label = st.selectbox(
-                    f"{d} End",
-                    labels,
-                    key=f"end_{d}"
-                )
+                start_label = st.selectbox(f"{d} Start", labels, key=f"start_{d}")
+                end_label = st.selectbox(f"{d} End", labels, key=f"end_{d}")
 
                 start = mapping[start_label]
                 end = mapping[end_label]
@@ -287,13 +276,13 @@ elif st.session_state.page == "Planning":
                             st.session_state.blocked[d].pop(j)
                             st.rerun()
 
-    # ---------------- CENTER BUTTON ----------------
+    # CENTER BUTTON
     st.markdown("<div style='text-align:center; margin-top:40px;'>", unsafe_allow_html=True)
     if st.button("Create My Week 🌿"):
         generate_schedule()
     st.markdown("</div>", unsafe_allow_html=True)
 
-    # ---------------- RESULTS ----------------
+    # RESULTS
     if st.session_state.generated:
         st.divider()
         availability = compute_availability()
