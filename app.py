@@ -82,16 +82,30 @@ def compute_availability():
 
 # ---------- TASK MANAGEMENT ----------
 def add_task(name, hours, difficulty, due):
-    st.session_state.tasks.append({
-        "name": name,
-        "hours": hours,
-        "difficulty": difficulty,
-        "due": due
-    })
+    if name.strip():
+        st.session_state.tasks.append({
+            "name": name,
+            "hours": hours,
+            "difficulty": difficulty,
+            "due": due
+        })
+        st.session_state.generated = False
 
 def delete_task(index):
-    st.session_state.tasks.pop(index)
+    if 0 <= index < len(st.session_state.tasks):
+        st.session_state.tasks.pop(index)
+        st.session_state.generated = False
 
+# ---------- MULTI-BLOCK AVAILABILITY ----------
+def compute_availability():
+    availability = {}
+    for d in DAYS:
+        blocked_hours = 0
+        for block in st.session_state.blocked[d]:
+            blocked_hours += max(0, block["end"] - block["start"])
+        availability[d] = max(0, 16 - blocked_hours)  # assume 8h sleep baseline
+    return availability
+    
 # ---------- SCHEDULING + BALANCING ----------
 def generate_schedule():
     today = date.today()
@@ -232,21 +246,77 @@ left, right = st.columns([1,1])
 
 with left:
     st.subheader("Add Task")
+
     name = st.text_input("Task Name")
     hours = st.number_input("Estimated Hours", 0.0, 20.0, 1.0)
     difficulty = st.selectbox("Difficulty", ["Low","Med","High"])
     due = st.date_input("Due Date", value=date.today()+timedelta(days=2))
-    if st.button("Add Task"):
-        add_task(name, hours, difficulty, due)
 
+    if st.button("➕ Add Task"):
+        add_task(name, hours, difficulty, due)
+        st.success("Task added!")
+
+    # -------- SHOW LIVE TASK LIST --------
     st.divider()
-    st.subheader("Blocked Time (System Infers Availability)")
+    st.subheader("Your Tasks")
+
+    if not st.session_state.tasks:
+        st.info("No tasks added yet.")
+    else:
+        for i, task in enumerate(st.session_state.tasks):
+            col1, col2 = st.columns([0.85,0.15])
+            with col1:
+                st.write(
+                    f"**{task['name']}** — {task['hours']}h · {task['difficulty']} · due {task['due'].strftime('%b %d')}"
+                )
+            with col2:
+                if st.button("🗑️", key=f"del_task_{i}"):
+                    delete_task(i)
+                    st.rerun()
+
+    # -------- MULTI-BLOCK TIME SYSTEM --------
+    st.divider()
+    st.subheader("Blocked Time (Multiple Blocks Allowed)")
+
     for d in DAYS:
         with st.expander(d):
-            start = st.number_input(f"{d} Start Hour", 0.0, 24.0, 9.0, key=f"s{d}")
-            end = st.number_input(f"{d} End Hour", 0.0, 24.0, 17.0, key=f"e{d}")
-            if st.button(f"Block {d}", key=f"b{d}"):
-                st.session_state.blocked[d].append({"start": start, "end": end})
+
+            # Add new block
+            col1, col2 = st.columns(2)
+            with col1:
+                start = st.number_input(
+                    f"{d} Start",
+                    0.0, 24.0, 9.0,
+                    key=f"start_{d}"
+                )
+            with col2:
+                end = st.number_input(
+                    f"{d} End",
+                    0.0, 24.0, 17.0,
+                    key=f"end_{d}"
+                )
+
+            if st.button(f"Add Block to {d}", key=f"add_block_{d}"):
+                if end > start:
+                    st.session_state.blocked[d].append({
+                        "start": start,
+                        "end": end
+                    })
+                    st.success("Block added.")
+                else:
+                    st.error("End time must be greater than start time.")
+
+            # Show existing blocks
+            if st.session_state.blocked[d]:
+                st.markdown("**Current Blocks:**")
+                for j, block in enumerate(st.session_state.blocked[d]):
+                    colA, colB = st.columns([0.85,0.15])
+                    with colA:
+                        st.write(f"{block['start']} → {block['end']}")
+                    with colB:
+                        if st.button("❌", key=f"del_block_{d}_{j}"):
+                            st.session_state.blocked[d].pop(j)
+                            st.rerun()
 
 with right:
     if st.button("✨ Generate Intelligent Week"):
