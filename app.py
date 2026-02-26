@@ -15,7 +15,7 @@ DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
 st.markdown("""
 <style>
 
-/* Overall background */
+/* Background */
 .stApp {
     background-color: #F8F5F0;
 }
@@ -50,16 +50,33 @@ st.markdown("""
     margin-bottom: 18px;
 }
 
-/* Cards */
-.day-card {
-    background-color: #FFFFFF;
-    border-radius: 16px;
-    padding: 18px;
-    margin-bottom: 16px;
-    box-shadow: 0px 4px 14px rgba(0,0,0,0.05);
+/* TEXT INPUT */
+div[data-testid="stTextInput"] input {
+    background-color: #FFFFFF !important;
+    color: #2F4F3E !important;
+    border-radius: 10px;
 }
 
-/* Buttons */
+/* NUMBER INPUT */
+div[data-testid="stNumberInput"] input {
+    background-color: #FFFFFF !important;
+    color: #2F4F3E !important;
+    border-radius: 10px;
+}
+
+/* SELECTBOX */
+div[data-testid="stSelectbox"] > div {
+    background-color: #FFFFFF !important;
+    color: #2F4F3E !important;
+}
+
+/* Expander header */
+details > summary {
+    color: #2F4F3E !important;
+    font-weight: 500;
+}
+
+/* Button */
 .stButton > button {
     background-color: #7A9E7E;
     color: white;
@@ -68,6 +85,11 @@ st.markdown("""
 
 .stButton > button:hover {
     background-color: #678C6C;
+}
+
+/* Make ALL body text readable */
+body, p, label, span, div {
+    color: #2F4F3E;
 }
 
 </style>
