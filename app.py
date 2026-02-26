@@ -1,47 +1,75 @@
 # app.py
 import streamlit as st
 from datetime import date, timedelta
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
-from reportlab.lib.styles import getSampleStyleSheet
-from reportlab.lib import colors
-from reportlab.lib.pagesizes import letter, landscape
-from io import BytesIO
 
 st.set_page_config(
     page_title="Weekly Planner",
-    page_icon="✨",
+    page_icon="🌿",
     layout="wide",
     initial_sidebar_state="collapsed"
 )
 
 DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
 
-# ---------- SOFT CALM STYLING ----------
+# ---------- LIGHT CALM THEME ----------
 st.markdown("""
 <style>
+
+/* Overall background */
+.stApp {
+    background-color: #F8F5F0;
+}
+
+/* Main headings */
 .big-title {
     font-size: 42px;
     font-weight: 600;
     text-align: center;
+    color: #2F4F3E;
     margin-bottom: 10px;
 }
+
 .subtitle {
     text-align: center;
     font-size: 18px;
-    color: #6B7280;
+    color: #6E7F73;
     margin-bottom: 40px;
 }
-.center-button {
-    display: flex;
-    justify-content: center;
-    margin-top: 40px;
+
+/* Section headers */
+.section-title {
+    font-size: 22px;
+    font-weight: 600;
+    color: #2F4F3E;
+    margin-bottom: 4px;
 }
+
+.section-sub {
+    font-size: 14px;
+    color: #7A8B80;
+    margin-bottom: 18px;
+}
+
+/* Cards */
 .day-card {
-    border-radius: 18px;
+    background-color: #FFFFFF;
+    border-radius: 16px;
     padding: 18px;
     margin-bottom: 16px;
     box-shadow: 0px 4px 14px rgba(0,0,0,0.05);
 }
+
+/* Buttons */
+.stButton > button {
+    background-color: #7A9E7E;
+    color: white;
+    border-radius: 12px;
+}
+
+.stButton > button:hover {
+    background-color: #678C6C;
+}
+
 </style>
 """, unsafe_allow_html=True)
 
@@ -113,14 +141,14 @@ def generate_schedule():
 
 if st.session_state.page == "Home":
 
-    st.markdown("<div class='big-title'>✨ Welcome</div>", unsafe_allow_html=True)
+    st.markdown("<div class='big-title'>🌿 Welcome</div>", unsafe_allow_html=True)
     st.markdown(
-        "<div class='subtitle'>A calm space to build a week you can actually breathe in.</div>",
+        "<div class='subtitle'>Build a week that feels balanced.</div>",
         unsafe_allow_html=True
     )
 
-    st.markdown("<div class='center-button'>", unsafe_allow_html=True)
-    if st.button("Let's Get Started 🌿"):
+    st.markdown("<div style='text-align:center;'>", unsafe_allow_html=True)
+    if st.button("Let’s Get Started"):
         st.session_state.page = "Planning"
         st.rerun()
     st.markdown("</div>", unsafe_allow_html=True)
@@ -133,21 +161,24 @@ elif st.session_state.page == "Planning":
 
     st.markdown("<div class='big-title'>Plan Your Week</div>", unsafe_allow_html=True)
     st.markdown(
-        "<div class='subtitle'>Add your tasks. Set your schedule. We'll help you balance it.</div>",
+        "<div class='subtitle'>Let’s organize your time in a way that actually feels doable.</div>",
         unsafe_allow_html=True
     )
 
     left, right = st.columns(2)
 
-    # ---------------- LEFT: TASK INPUT ----------------
+    # ---------------- LEFT: ADD TASKS ----------------
     with left:
-        st.subheader("Add Tasks")
+        st.markdown("<div class='section-title'>Start with your to-do list</div>", unsafe_allow_html=True)
+        st.markdown(
+            "<div class='section-sub'>Add each task and estimate the time it might take.</div>",
+            unsafe_allow_html=True
+        )
 
         name = st.text_input("Task Name")
 
-        # 15-minute increments (0.25 hours)
         hours = st.number_input(
-            "Estimated Hours",
+            "Estimated Time (hours)",
             min_value=0.0,
             max_value=20.0,
             step=0.25,
@@ -163,19 +194,22 @@ elif st.session_state.page == "Planning":
 
         st.divider()
 
-        if st.session_state.tasks:
-            for i, task in enumerate(st.session_state.tasks):
-                col1, col2 = st.columns([0.85,0.15])
-                with col1:
-                    st.write(f"{task['name']} — {task['hours']}h")
-                with col2:
-                    if st.button("🗑️", key=f"del_{i}"):
-                        st.session_state.tasks.pop(i)
-                        st.rerun()
+        for i, task in enumerate(st.session_state.tasks):
+            col1, col2 = st.columns([0.85,0.15])
+            with col1:
+                st.write(f"{task['name']} — {task['hours']}h")
+            with col2:
+                if st.button("🗑️", key=f"del_{i}"):
+                    st.session_state.tasks.pop(i)
+                    st.rerun()
 
-    # ---------------- RIGHT: SCHEDULE ----------------
+    # ---------------- RIGHT: DAILY AVAILABILITY ----------------
     with right:
-        st.subheader("Your Daily Schedule")
+        st.markdown("<div class='section-title'>When are you unavailable?</div>", unsafe_allow_html=True)
+        st.markdown(
+            "<div class='section-sub'>Block off work, class, sleep, or personal time.</div>",
+            unsafe_allow_html=True
+        )
 
         time_options = generate_time_options()
         labels = [opt[0] for opt in time_options]
@@ -189,6 +223,7 @@ elif st.session_state.page == "Planning":
                     labels,
                     key=f"start_{d}"
                 )
+
                 end_label = st.selectbox(
                     f"{d} End",
                     labels,
@@ -217,9 +252,9 @@ elif st.session_state.page == "Planning":
                             st.session_state.blocked[d].pop(j)
                             st.rerun()
 
-    # ---------------- CENTER GENERATE BUTTON ----------------
-    st.markdown("<div class='center-button'>", unsafe_allow_html=True)
-    if st.button("✨ Build My Week"):
+    # ---------------- CENTER BUTTON ----------------
+    st.markdown("<div style='text-align:center; margin-top:40px;'>", unsafe_allow_html=True)
+    if st.button("Create My Week 🌿"):
         generate_schedule()
     st.markdown("</div>", unsafe_allow_html=True)
 
