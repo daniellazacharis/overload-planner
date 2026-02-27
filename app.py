@@ -8,7 +8,13 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-DAYS = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"]
+DAYS = ["Monday",
+        "Tuesday",
+        "Wednesday",
+        "Thursday",
+        "Friday",
+        "Saturday",
+        "Sunday"]
 PRIORITY_WEIGHT = {"High":3,"Medium":2,"Low":1}
 
 # ---------------- TIME UTILITIES ----------------
