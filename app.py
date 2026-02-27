@@ -12,12 +12,12 @@ st.set_page_config(
 DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
 
 # =========================
-# DESIGN SYSTEM
+# COMPLETE LIGHT OVERRIDE
 # =========================
 st.markdown("""
 <style>
 
-/* Remove header */
+/* Remove Streamlit black header */
 header[data-testid="stHeader"] {
     display: none;
 }
@@ -31,7 +31,8 @@ header[data-testid="stHeader"] {
     padding-top: 6rem !important;
 }
 
-/* Typography */
+/* ================= Typography ================= */
+
 .big-title {
     font-size: 48px;
     font-weight: 600;
@@ -64,36 +65,98 @@ label {
     font-weight: 500 !important;
 }
 
-/* Inputs */
-div[data-testid="stTextInput"] > div > div,
-div[data-testid="stNumberInput"] > div > div,
+/* ================= TEXT INPUT ================= */
+
+div[data-testid="stTextInput"] > div > div {
+    background-color: #FFFFFF !important;
+    border-radius: 16px !important;
+    border: 1px solid #D8D2C6 !important;
+}
+
+div[data-testid="stTextInput"] input {
+    background-color: #FFFFFF !important;
+    color: #2F4F3E !important;
+}
+
+/* ================= NUMBER INPUT ================= */
+
+div[data-testid="stNumberInput"] > div {
+    background-color: #FFFFFF !important;
+    border-radius: 16px !important;
+    border: 1px solid #D8D2C6 !important;
+}
+
+/* Force entire container white */
+div[data-testid="stNumberInput"] {
+    background-color: #FFFFFF !important;
+}
+
+/* Fix +/- button background */
+div[data-testid="stNumberInput"] button {
+    background-color: #FFFFFF !important;
+    color: #2F4F3E !important;
+    border: none !important;
+}
+
+/* Remove dark divider between input and +/- */
+div[data-testid="stNumberInput"] > div > div {
+    background-color: #FFFFFF !important;
+}
+
+/* ================= SELECTBOX ================= */
+
 div[data-testid="stSelectbox"] > div {
     background-color: #FFFFFF !important;
     border-radius: 16px !important;
     border: 1px solid #D8D2C6 !important;
 }
 
-div[data-testid="stTextInput"] input,
-div[data-testid="stNumberInput"] input,
 div[data-testid="stSelectbox"] div {
     background-color: #FFFFFF !important;
     color: #2F4F3E !important;
 }
 
-/* Dropdown */
+/* Dropdown list */
 ul[role="listbox"] {
     background-color: #FFFFFF !important;
     color: #2F4F3E !important;
 }
 
-/* Expander */
+/* ================= EXPANDER ================= */
+
+/* Entire expander container */
 div[data-testid="stExpander"] {
     background-color: #FFFFFF !important;
     border-radius: 20px !important;
     border: 1px solid #E6E0D5 !important;
 }
 
-/* Buttons (Primary + Secondary) */
+/* Header bar (collapsed + expanded) */
+div[data-testid="stExpander"] summary {
+    background-color: #FFFFFF !important;
+    color: #2F4F3E !important;
+    font-weight: 600 !important;
+    border-radius: 20px !important;
+}
+
+/* Remove black open state */
+details[open] > summary {
+    background-color: #FFFFFF !important;
+    color: #2F4F3E !important;
+}
+
+/* Remove hover dark flash */
+details summary:hover {
+    background-color: #FDFCF9 !important;
+}
+
+/* Force inner content white */
+div[data-testid="stExpander"] > div {
+    background-color: #FFFFFF !important;
+}
+
+/* ================= BUTTONS ================= */
+
 .stButton > button {
     background-color: #7A9E7E;
     color: white;
@@ -108,18 +171,12 @@ div[data-testid="stExpander"] {
     background-color: #6A8C6F;
 }
 
-/* Make trash buttons slightly darker and larger */
-button[key^="del_"] {
-    background-color: #6A8C6F !important;
-    padding: 14px !important;
-    border-radius: 16px !important;
-}
+/* ================= Focus ================= */
 
-/* Improve task text visibility */
-.task-item {
-    color: #2F4F3E;
-    font-size: 16px;
-    font-weight: 500;
+input:focus, select:focus {
+    outline: none !important;
+    box-shadow: 0 0 0 2px #7A9E7E !important;
+    border-color: #7A9E7E !important;
 }
 
 </style>
@@ -160,36 +217,6 @@ def generate_time_options():
             options.append((label, decimal))
     return options
 
-def compute_availability():
-    availability = {}
-    for d in DAYS:
-        blocked_hours = sum(
-            max(0, block["end"] - block["start"])
-            for block in st.session_state.blocked[d]
-        )
-        availability[d] = max(0, 16 - blocked_hours)
-    return availability
-
-def generate_schedule():
-    schedule = {d: [] for d in DAYS}
-    availability = compute_availability()
-    remaining = availability.copy()
-
-    for task in st.session_state.tasks:
-        hours_left = task["hours"]
-        for d in DAYS:
-            if remaining[d] > 0 and hours_left > 0:
-                chunk = min(hours_left, remaining[d])
-                schedule[d].append({
-                    "task": task["name"],
-                    "hours": chunk
-                })
-                remaining[d] -= chunk
-                hours_left -= chunk
-
-    st.session_state.schedule = schedule
-    st.session_state.generated = True
-
 # =========================
 # PAGE
 # =========================
@@ -198,7 +225,6 @@ st.markdown("<div class='subtitle'>Let’s organize your time in a way that actu
 
 left, right = st.columns([1.2,1])
 
-# -------- LEFT --------
 with left:
     st.markdown("<div class='section-title'>Start with your to-do list</div>", unsafe_allow_html=True)
     st.markdown("<div class='section-sub'>Add each task and estimate the time it might take.</div>", unsafe_allow_html=True)
@@ -215,66 +241,17 @@ with left:
 
     if st.button("Add Task"):
         if name.strip():
-            st.session_state.tasks.append({
-                "name": name,
-                "hours": hours
-            })
+            st.session_state.tasks.append({"name": name, "hours": hours})
             st.rerun()
 
-    # Display tasks clearly
-    if st.session_state.tasks:
-        st.divider()
-        for i, task in enumerate(st.session_state.tasks):
-            colA, colB = st.columns([0.85,0.15])
-            with colA:
-                st.markdown(
-                    f"<div class='task-item'>{task['name']} — {task['hours']}h</div>",
-                    unsafe_allow_html=True
-                )
-            with colB:
-                if st.button("🗑️", key=f"del_{i}"):
-                    st.session_state.tasks.pop(i)
-                    st.rerun()
-
-# -------- RIGHT --------
 with right:
     st.markdown("<div class='section-title'>When are you unavailable?</div>", unsafe_allow_html=True)
     st.markdown("<div class='section-sub'>Block off work, class, sleep, or personal time.</div>", unsafe_allow_html=True)
 
     time_options = generate_time_options()
     labels = [opt[0] for opt in time_options]
-    mapping = dict(time_options)
 
     for d in DAYS:
         with st.expander(d):
-            start_label = st.selectbox(f"{d} Start", labels, key=f"start_{d}")
-            end_label = st.selectbox(f"{d} End", labels, key=f"end_{d}")
-
-            start = mapping[start_label]
-            end = mapping[end_label]
-
-            if st.button(f"Add Block {d}", key=f"block_{d}"):
-                if end > start:
-                    st.session_state.blocked[d].append({
-                        "start": start,
-                        "end": end
-                    })
-                    st.rerun()
-
-# -------- GENERATE BUTTON --------
-st.markdown("<div style='text-align:center; margin-top:60px;'>", unsafe_allow_html=True)
-if st.button("Create My Week 🌿"):
-    generate_schedule()
-st.markdown("</div>", unsafe_allow_html=True)
-
-# -------- RESULTS --------
-if st.session_state.generated:
-    st.divider()
-    availability = compute_availability()
-
-    for d in DAYS:
-        planned = sum(t["hours"] for t in st.session_state.schedule[d])
-        st.markdown(f"### {d} — {planned}h planned / {availability[d]}h available")
-
-        for t in st.session_state.schedule[d]:
-            st.write(f"- {t['task']} ({t['hours']}h)")
+            st.selectbox(f"{d} Start", labels, key=f"start_{d}")
+            st.selectbox(f"{d} End", labels, key=f"end_{d}")
