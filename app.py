@@ -1,6 +1,6 @@
 # app.py
 import streamlit as st
-from datetime import datetime, timedelta
+from datetime import datetime
 
 st.set_page_config(
     page_title="Stress-Free Weekly Planner",
@@ -9,7 +9,7 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-DAYS = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"]
+DAYS = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"]
 PRIORITY_ORDER = {"High":3,"Medium":2,"Low":1}
 
 # ================= SESSION STATE =================
@@ -25,12 +25,12 @@ if "availability" not in st.session_state:
 if "schedule" not in st.session_state:
     st.session_state.schedule = {d: [] for d in DAYS}
 
-# ================= STYLE =================
+# ================= STYLING =================
 st.markdown("""
 <style>
 header {visibility:hidden;}
 .stApp {background:#F8F5F0;}
-.block-container {padding-top:5rem;}
+.block-container {padding-top:4rem;}
 
 .big-title {
     font-size:48px;
@@ -43,7 +43,7 @@ header {visibility:hidden;}
     text-align:center;
     font-size:20px;
     color:#556B5D;
-    margin-bottom:40px;
+    margin-bottom:20px;
 }
 
 .section-title {
@@ -56,16 +56,6 @@ header {visibility:hidden;}
     font-size:14px;
     color:#7A8B80;
     margin-bottom:20px;
-}
-
-input, select {
-    background:#FFFFFF !important;
-    color:#2F4F3E !important;
-}
-
-::selection {
-    background:#7A9E7E;
-    color:white;
 }
 
 .stButton > button {
@@ -82,7 +72,7 @@ input, select {
 </style>
 """, unsafe_allow_html=True)
 
-# ================= HOME =================
+# ================= HOME PAGE =================
 if st.session_state.page == "home":
 
     st.markdown("<div class='big-title'>🌿 Welcome</div>", unsafe_allow_html=True)
@@ -91,13 +81,15 @@ if st.session_state.page == "home":
 
     st.markdown("<br><br>", unsafe_allow_html=True)
 
-    col1, col2, col3 = st.columns([1,2,1])
-    with col2:
-        if st.button("Let’s Get Started 🌿"):
-            st.session_state.page = "planning"
-            st.rerun()
+    center = st.container()
+    with center:
+        col1, col2, col3 = st.columns([1,1,1])
+        with col2:
+            if st.button("Let’s Get Started 🌿"):
+                st.session_state.page = "planning"
+                st.rerun()
 
-# ================= PLANNING =================
+# ================= PLANNING PAGE =================
 if st.session_state.page == "planning":
 
     st.markdown("<div class='big-title'>Plan Your Week</div>", unsafe_allow_html=True)
@@ -158,10 +150,10 @@ if st.session_state.page == "planning":
                     st.rerun()
 
                 for idx, block in enumerate(st.session_state.availability[d]):
-                    c1, c2 = st.columns([4,1])
-                    with c1:
+                    cols = st.columns([4,1])
+                    with cols[0]:
                         st.caption(f"{block[0]} → {block[1]}")
-                    with c2:
+                    with cols[1]:
                         if st.button("❌", key=f"del_block_{d}_{idx}"):
                             st.session_state.availability[d].pop(idx)
                             st.rerun()
@@ -171,7 +163,6 @@ if st.session_state.page == "planning":
     # -------- SCHEDULING --------
     if st.button("Create My Week 🌿"):
 
-        # sort by priority
         sorted_tasks = sorted(
             st.session_state.tasks,
             key=lambda x: PRIORITY_ORDER[x["priority"]],
@@ -185,7 +176,6 @@ if st.session_state.page == "planning":
             st.session_state.schedule[DAYS[day_index]].append(task)
             day_index = (day_index + 1) % 7
 
-    # -------- OUTPUT --------
     if any(st.session_state.schedule[d] for d in DAYS):
         st.markdown("<div class='section-title'>Your Week Schedule</div>", unsafe_allow_html=True)
 
