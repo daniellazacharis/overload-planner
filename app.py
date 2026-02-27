@@ -15,7 +15,7 @@ DAYS = [
 
 PRIORITY_WEIGHT = {"High":3,"Medium":2,"Low":1}
 
-# ---------------- TIME UTILITIES ----------------
+# ---------------- TIME HELPERS ----------------
 
 def time_to_float(t):
     dt = datetime.strptime(t, "%I:%M %p")
@@ -47,14 +47,11 @@ TIMES = build_times()
 
 # ---------------- STATE ----------------
 
-if "page" not in st.session_state:
-    st.session_state.page = "home"
-
 if "tasks" not in st.session_state:
     st.session_state.tasks = []
 
 if "sleep" not in st.session_state:
-    st.session_state.sleep = ("11:00 PM","7:00 AM")
+    st.session_state.sleep = ("12:00 AM","6:00 AM")
 
 if "commitments" not in st.session_state:
     st.session_state.commitments = {d: [] for d in DAYS}
@@ -65,207 +62,145 @@ if "schedule" not in st.session_state:
 if "unscheduled" not in st.session_state:
     st.session_state.unscheduled = []
 
-# ---------------- HOME ----------------
+# ---------------- UI ----------------
 
-if st.session_state.page == "home":
+st.title("🌿 Stress-Free Weekly Planner")
 
-    st.markdown("<h1 style='text-align:center;'>🌿 Welcome</h1>", unsafe_allow_html=True)
-    st.markdown("<h2 style='text-align:center;'>Build a week that feels manageable.</h2>", unsafe_allow_html=True)
-    st.markdown(
-        "<p style='text-align:center; font-size:18px;'>Plan around your real life — protect your rest — and gently place what matters.</p>",
-        unsafe_allow_html=True
-    )
+left,right = st.columns([1.2,1])
 
-    st.markdown("<br><br>", unsafe_allow_html=True)
+# -------- TASKS --------
+with left:
+    st.subheader("Add Tasks")
 
-    c1,c2,c3 = st.columns([2,1,2])
-    with c2:
-        if st.button("Start Building My Week 🌿", use_container_width=True):
-            st.session_state.page="planning"
+    name = st.text_input("Task Name")
+    hours = st.number_input("Hours Needed", min_value=0.5, step=0.5)
+    priority = st.selectbox("Priority", ["High","Medium","Low"])
+
+    if st.button("Add Task"):
+        if name.strip():
+            st.session_state.tasks.append({
+                "name": name,
+                "hours": hours,
+                "priority": priority
+            })
+
+    for i,t in enumerate(st.session_state.tasks):
+        if st.button(f"Delete {t['name']}", key=f"d{i}"):
+            st.session_state.tasks.pop(i)
             st.rerun()
 
-# ---------------- PLANNING ----------------
+# -------- SLEEP + COMMITMENTS --------
+with right:
 
-if st.session_state.page == "planning":
+    st.subheader("Sleep Window")
+    sleep_start = st.selectbox("Sleep Start", TIMES)
+    sleep_end = st.selectbox("Sleep End", TIMES)
+    st.session_state.sleep=(sleep_start,sleep_end)
 
-    st.markdown("<h1 style='text-align:center;'>🌿 Build Your Stress-Free Week</h1>", unsafe_allow_html=True)
-    st.markdown("<p style='text-align:center;'>Let’s gently organize your time around what actually matters.</p>", unsafe_allow_html=True)
+    st.subheader("Commitments")
 
-    left,right = st.columns([1.2,1])
+    for d in DAYS:
+        with st.expander(d):
+            label = st.text_input(f"{d} Label", key=f"{d}_label")
+            start = st.selectbox(f"{d} Start", TIMES, key=f"{d}_start")
+            end = st.selectbox(f"{d} End", TIMES, key=f"{d}_end")
 
-    # -------- TASKS --------
-    with left:
-        st.subheader("What needs your energy this week?")
-        st.caption("Add tasks and estimate how much focus they’ll realistically need.")
+            if st.button(f"Add {d}", key=f"add_{d}"):
+                if label.strip():
+                    st.session_state.commitments[d].append((label,start,end))
 
-        name = st.text_input("Task Name")
-        hours = st.number_input("Hours Needed", min_value=0.5, step=0.5)
-        priority = st.selectbox("Priority", ["High","Medium","Low"])
+# -------- GENERATE --------
 
-        if st.button("Add Task", use_container_width=True):
-            if name.strip():
-                st.session_state.tasks.append({
-                    "name": name,
-                    "hours": hours,
-                    "priority": priority
-                })
-                st.rerun()
+if st.button("Generate Week"):
 
-        st.markdown("---")
+    st.session_state.schedule = {d: [] for d in DAYS}
+    st.session_state.unscheduled = []
 
-        if st.session_state.tasks:
-            st.markdown("### Your Task List")
-            for i,task in enumerate(st.session_state.tasks):
-                cols = st.columns([6,1])
-                with cols[0]:
-                    st.markdown(
-                        f"""
-                        <div style="background-color:#EAF4EE;border:1px solid #D4E6DA;
-                        padding:14px 18px;border-radius:14px;margin-bottom:10px;">
-                            <div style="font-weight:600;">{task['name']}</div>
-                            <div style="font-size:13px;opacity:0.75;">
-                                {task['hours']} hrs • {task['priority']} priority
-                            </div>
-                        </div>
-                        """,
-                        unsafe_allow_html=True
-                    )
-                with cols[1]:
-                    if st.button("🗑️", key=f"del_{i}", use_container_width=True):
-                        st.session_state.tasks.pop(i)
-                        st.rerun()
+    sleep_start_f = time_to_float(st.session_state.sleep[0])
+    sleep_end_f = time_to_float(st.session_state.sleep[1])
 
-    # -------- SLEEP + COMMITMENTS --------
-    with right:
+    tasks = sorted(
+        [{"name":t["name"],"hours":t["hours"]} for t in st.session_state.tasks],
+        key=lambda x: PRIORITY_WEIGHT[[tt for tt in st.session_state.tasks if tt["name"]==x["name"]][0]["priority"]],
+        reverse=True
+    )
 
-        st.subheader("Your baseline rest rhythm")
-        sleep_start = st.selectbox("Sleep Start", TIMES)
-        sleep_end = st.selectbox("Sleep End", TIMES)
-        st.session_state.sleep=(sleep_start,sleep_end)
+    for d in DAYS:
 
-        st.markdown("---")
-        st.subheader("What’s already spoken for?")
+        # Build blocked intervals
+        blocked = []
 
-        for d in DAYS:
-            with st.expander(d):
-                label = st.text_input(f"{d} Label", key=f"{d}_label")
-                start = st.selectbox(f"{d} Start", TIMES, key=f"{d}_start")
-                end = st.selectbox(f"{d} End", TIMES, key=f"{d}_end")
-
-                if st.button(f"Add {d} Commitment", key=f"add_{d}", use_container_width=True):
-                    if label.strip():
-                        st.session_state.commitments[d].append((label,start,end))
-                        st.rerun()
-
-                for idx,block in enumerate(st.session_state.commitments[d]):
-                    r=st.columns([4,1])
-                    with r[0]:
-                        st.caption(f"{block[0]}: {block[1]} → {block[2]}")
-                    with r[1]:
-                        if st.button("❌",key=f"del_{d}_{idx}",use_container_width=True):
-                            st.session_state.commitments[d].pop(idx)
-                            st.rerun()
-
-    st.markdown("---")
-
-    # -------- GENERATE --------
-
-    if st.button("Create My Stress-Free Week 🌿", use_container_width=True):
-
-        st.session_state.schedule = {d: [] for d in DAYS}
-        st.session_state.unscheduled = []
-
-        sleep_start_f = time_to_float(st.session_state.sleep[0])
-        sleep_end_f = time_to_float(st.session_state.sleep[1])
-
-        if sleep_start_f == sleep_end_f:
-            st.warning("Oops — your sleep window starts and ends at the same time. Please adjust it.")
-            st.stop()
-
+        # Sleep
         if sleep_start_f > sleep_end_f:
-            sleep_duration = (24 - sleep_start_f) + sleep_end_f
+            blocked.append((sleep_start_f,24,"Sleep"))
+            blocked.append((0,sleep_end_f,"Sleep"))
         else:
-            sleep_duration = sleep_end_f - sleep_start_f
+            blocked.append((sleep_start_f,sleep_end_f,"Sleep"))
 
-        if sleep_duration < 4:
-            st.warning("That sleep window is quite short. Less than 4 hours may impact recovery.")
-        if sleep_duration > 12:
-            st.info("That’s a long sleep window — just confirming it’s intentional.")
+        # Commitments
+        for c in st.session_state.commitments[d]:
+            blocked.append((time_to_float(c[1]),time_to_float(c[2]),c[0]))
 
-        # Build timeline per day
-        remaining_tasks = [
-            {"name": t["name"], "hours": t["hours"], "priority": t["priority"]}
-            for t in sorted(st.session_state.tasks,
-                            key=lambda x: PRIORITY_WEIGHT[x["priority"]],
-                            reverse=True)
-        ]
+        blocked.sort(key=lambda x:x[0])
 
-        total_available = 0
-
-        for d in DAYS:
-
-            day_blocks = []
-
-            # Sleep
-            if sleep_start_f > sleep_end_f:
-                day_blocks.append(("Sleep", sleep_start_f, 24))
-                day_blocks.append(("Sleep", 0, sleep_end_f))
-                current = sleep_end_f
+        # Merge overlapping
+        merged=[]
+        for start,end,label in blocked:
+            if not merged:
+                merged.append([start,end,label])
             else:
-                day_blocks.append(("Sleep", sleep_start_f, sleep_end_f))
-                current = sleep_end_f
+                last=merged[-1]
+                if start <= last[1]:
+                    last[1]=max(last[1],end)
+                else:
+                    merged.append([start,end,label])
 
-            # Commitments
-            for c in st.session_state.commitments[d]:
-                day_blocks.append((c[0], time_to_float(c[1]), time_to_float(c[2])))
+        # Build gaps
+        gaps=[]
+        prev_end=0
+        for start,end,label in merged:
+            if prev_end < start:
+                gaps.append((prev_end,start))
+            prev_end=end
+        if prev_end < 24:
+            gaps.append((prev_end,24))
 
-            day_blocks.sort(key=lambda x: x[1])
+        # Fill gaps
+        day_schedule=[]
+        for start,end,label in merged:
+            day_schedule.append((label,start,end))
 
-            day_schedule = []
+        for gap_start,gap_end in gaps:
+            while tasks and gap_start < gap_end:
+                task=tasks[0]
+                available = gap_end-gap_start
+                place=min(task["hours"],available)
 
-            for label,start,end in day_blocks:
+                day_schedule.append((task["name"],gap_start,gap_start+place))
 
-                # Fill gap
-                while remaining_tasks and current < start:
-                    available = start - current
-                    if available <= 0:
-                        break
+                task["hours"]-=place
+                gap_start+=place
 
-                    task = remaining_tasks[0]
-                    place = min(task["hours"], available)
+                if task["hours"]<=0:
+                    tasks.pop(0)
 
-                    day_schedule.append((task["name"], current, current+place))
-                    total_available += place
+        st.session_state.schedule[d]=sorted(day_schedule,key=lambda x:x[1])
 
-                    task["hours"] -= place
-                    current += place
+    # Remaining tasks
+    for t in tasks:
+        st.session_state.unscheduled.append((t["name"],t["hours"]))
 
-                    if task["hours"] <= 0:
-                        remaining_tasks.pop(0)
+# -------- OUTPUT --------
 
-                day_schedule.append((label,start,end))
-                current = max(current,end)
+if any(st.session_state.schedule[d] for d in DAYS):
 
-            st.session_state.schedule[d] = day_schedule
+    for d in DAYS:
+        if st.session_state.schedule[d]:
+            st.markdown(f"### {d}")
+            for item in st.session_state.schedule[d]:
+                st.write(f"{item[0]}: {float_to_time(item[1])} → {float_to_time(item[2])}")
 
-        # Remaining unscheduled
-        for t in remaining_tasks:
-            st.session_state.unscheduled.append((t["name"],t["hours"]))
-
-    # -------- OUTPUT --------
-
-    if any(st.session_state.schedule[d] for d in DAYS):
-
-        st.markdown("## 🌿 Your Gentle Weekly Layout")
-
-        for d in DAYS:
-            if st.session_state.schedule[d]:
-                st.markdown(f"### {d}")
-                for item in st.session_state.schedule[d]:
-                    st.write(f"{item[0]}: {float_to_time(item[1])} → {float_to_time(item[2])}")
-
-        if st.session_state.unscheduled:
-            st.markdown("---")
-            st.warning("Some tasks could not be scheduled without overloading your week:")
-            for u in st.session_state.unscheduled:
-                st.write(f"{u[0]} — {u[1]:.1f} hrs remaining")
+    if st.session_state.unscheduled:
+        st.warning("Unscheduled Tasks:")
+        for u in st.session_state.unscheduled:
+            st.write(f"{u[0]} — {u[1]:.1f} hrs remaining")
