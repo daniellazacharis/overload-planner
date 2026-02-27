@@ -22,14 +22,12 @@ def time_to_float(t):
     return dt.hour + dt.minute/60
 
 def float_to_time(f):
-    # Normalize 24 -> 0
     if f >= 24:
-        f = f - 24
+        f -= 24
 
     h = int(f)
-    m = int(round((f - h) * 60))
+    m = int(round((f-h)*60))
 
-    # Handle 60 minute rounding edge case
     if m == 60:
         m = 0
         h += 1
@@ -37,7 +35,6 @@ def float_to_time(f):
             h = 0
 
     suffix = "AM" if h < 12 else "PM"
-
     h12 = h % 12
     h12 = 12 if h12 == 0 else h12
 
@@ -171,18 +168,86 @@ if st.session_state.page=="planning":
 
     st.markdown("---")
 
-    # ---------------- FIXED SCHEDULING ENGINE ----------------
+    # ---------------- SCHEDULING ENGINE ----------------
 
     if st.button("Create My Stress-Free Week 🌿", use_container_width=True):
 
         sleep_start_f = time_to_float(st.session_state.sleep[0])
         sleep_end_f = time_to_float(st.session_state.sleep[1])
-    
-        # Prevent identical sleep times
+
+        # Guardrail: identical sleep times
         if sleep_start_f == sleep_end_f:
-            st.error("Your sleep start and end time can't be the same. Adjust your rest window.")
+            st.warning(
+                "Oops — it looks like your sleep window starts and ends at the same time. "
+                "We probably can’t get through the week with zero hours of rest. "
+                "Please adjust your sleep window so we can protect your energy."
+            )
             st.stop()
 
+        # Calculate sleep duration
+        if sleep_start_f > sleep_end_f:
+            sleep_duration = (24 - sleep_start_f) + sleep_end_f
+        else:
+            sleep_duration = sleep_end_f - sleep_start_f
+
+        # Gentle fatigue warning
+        if sleep_duration < 4:
+            st.warning(
+                "That sleep window looks very short. Consistently getting less than 4 hours "
+                "can significantly affect focus and recovery. Are you sure this reflects your typical week?"
+            )
+
+        # Long sleep confirmation
+        if sleep_duration > 12:
+            st.info(
+                "That’s quite a long rest window. If this is intentional, great — "
+                "just confirming that your sleep times are entered correctly."
+            )
+
+        # Calculate total available hours
+        total_available = 0
+
+        for d in DAYS:
+            blocks=[]
+
+            if sleep_start_f > sleep_end_f:
+                blocks.append((sleep_start_f,24))
+                blocks.append((0,sleep_end_f))
+            else:
+                blocks.append((sleep_start_f,sleep_end_f))
+
+            for c in st.session_state.commitments[d]:
+                blocks.append((time_to_float(c[1]), time_to_float(c[2])))
+
+            blocks.sort(key=lambda x:x[0])
+
+            current = sleep_end_f if sleep_start_f > sleep_end_f else sleep_end_f
+
+            for start,end in blocks:
+                if current < start:
+                    total_available += start - current
+                current = end
+
+        total_task_hours = sum(t["hours"] for t in st.session_state.tasks)
+
+        if total_task_hours > total_available:
+            overflow = total_task_hours - total_available
+
+            st.warning(
+                f"You’ve scheduled about {total_task_hours:.1f} hours of tasks, "
+                f"but only {total_available:.1f} hours are realistically available. "
+                f"Roughly {overflow:.1f} hours may not fit this week."
+            )
+
+            st.markdown("### Here are a few gentle options:")
+            st.markdown("""
+            - **Break larger tasks into smaller pieces** so they can fit into shorter gaps.
+            - **Reprioritize what truly needs to happen this week.**
+            - **Adjust fixed commitments if possible** to create breathing room.
+            - **Revisit your rest window carefully** only if it truly doesn’t reflect reality.
+            """)
+
+        # Build schedule
         st.session_state.schedule={d:[] for d in DAYS}
 
         sorted_tasks=sorted(
@@ -191,30 +256,25 @@ if st.session_state.page=="planning":
             reverse=True
         )
 
-        sleep_start_f = time_to_float(st.session_state.sleep[0])
-        sleep_end_f = time_to_float(st.session_state.sleep[1])
-
         for d in DAYS:
 
             blocks=[]
 
-            # Handle sleep crossing midnight
             if sleep_start_f > sleep_end_f:
-                blocks.append(("Sleep", sleep_start_f, 24))
-                blocks.append(("Sleep", 0, sleep_end_f))
+                blocks.append(("Sleep", sleep_start_f,24))
+                blocks.append(("Sleep",0,sleep_end_f))
                 wake_time = sleep_end_f
             else:
-                blocks.append(("Sleep", sleep_start_f, sleep_end_f))
+                blocks.append(("Sleep",sleep_start_f,sleep_end_f))
                 wake_time = sleep_end_f
 
-            # Add commitments
             for c in st.session_state.commitments[d]:
                 blocks.append((c[0], time_to_float(c[1]), time_to_float(c[2])))
 
-            blocks.sort(key=lambda x: x[1])
+            blocks.sort(key=lambda x:x[1])
 
-            day_schedule=[]
             current = wake_time
+            day_schedule=[]
 
             for label,start,end in blocks:
 
