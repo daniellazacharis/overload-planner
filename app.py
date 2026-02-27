@@ -130,15 +130,16 @@ if st.session_state.page=="planning":
                     st.markdown(
                         f"""
                         <div style="
-                            background-color:#F4F8F4;
-                            padding:12px 16px;
-                            border-radius:12px;
-                            margin-bottom:8px;
+                            background-color:#EAF4EE;
+                            border:1px solid #D4E6DA;
+                            padding:14px 18px;
+                            border-radius:14px;
+                            margin-bottom:10px;
                         ">
-                            <div style="font-weight:600; font-size:15px;">
+                            <div style="font-weight:600; font-size:15px; color:#2F4F3E;">
                                 {task['name']}
                             </div>
-                            <div style="font-size:13px; opacity:0.7;">
+                            <div style="font-size:13px; opacity:0.75; margin-top:4px;">
                                 {task['hours']} hrs • {task['priority']} priority
                             </div>
                         </div>
@@ -196,13 +197,35 @@ if st.session_state.page=="planning":
         sleep_start_f = time_to_float(st.session_state.sleep[0])
         sleep_end_f = time_to_float(st.session_state.sleep[1])
 
+        # Guardrail
         if sleep_start_f == sleep_end_f:
             st.warning(
-                "Oops — your sleep window starts and ends at the same time. "
+                "Oops — it looks like your sleep window starts and ends at the same time. "
                 "We probably can’t get through the week with zero hours of rest. "
-                "Please adjust your sleep window."
+                "Please adjust your sleep window so we can protect your energy."
             )
             st.stop()
+
+        # Sleep duration
+        if sleep_start_f > sleep_end_f:
+            sleep_duration = (24 - sleep_start_f) + sleep_end_f
+        else:
+            sleep_duration = sleep_end_f - sleep_start_f
+
+        # Fatigue warning
+        if sleep_duration < 4:
+            st.warning(
+                "That sleep window looks quite short. Consistently getting less than "
+                "4 hours can significantly impact focus and recovery. "
+                "If this reflects a temporary week, that’s okay — just be mindful."
+            )
+
+        # Long sleep confirmation
+        if sleep_duration > 12:
+            st.info(
+                "That’s a long rest window. If this is intentional, great — "
+                "just double-checking that your sleep times are entered correctly."
+            )
 
         st.session_state.schedule={d:[] for d in DAYS}
 
@@ -216,7 +239,6 @@ if st.session_state.page=="planning":
 
             day_schedule=[]
 
-            # Sleep block
             if sleep_start_f > sleep_end_f:
                 day_schedule.append(("Sleep", sleep_start_f,24))
                 day_schedule.append(("Sleep",0,sleep_end_f))
@@ -225,13 +247,11 @@ if st.session_state.page=="planning":
                 day_schedule.append(("Sleep", sleep_start_f,sleep_end_f))
                 current=sleep_end_f
 
-            # Commitments
             for c in st.session_state.commitments[d]:
                 day_schedule.append((c[0], time_to_float(c[1]), time_to_float(c[2])))
 
             day_schedule.sort(key=lambda x:x[1])
 
-            # Fill tasks between commitments
             final_schedule=[]
             for label,start,end in day_schedule:
 
