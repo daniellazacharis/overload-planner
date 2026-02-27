@@ -1,4 +1,5 @@
 import streamlit as st
+from datetime import datetime, timedelta
 
 st.set_page_config(
     page_title="Stress-Free Weekly Planner",
@@ -8,9 +9,23 @@ st.set_page_config(
 )
 
 DAYS = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"]
-PRIORITY_ORDER = {"High":3,"Medium":2,"Low":1}
+PRIORITY_WEIGHT = {"High":3,"Medium":2,"Low":1}
+DAY_CAPACITY = 12  # default available hours per day
+
+# ---------------- UTILITIES ----------------
+
+def time_to_float(t):
+    dt = datetime.strptime(t, "%I:%M %p")
+    return dt.hour + dt.minute/60
+
+def calculate_available_hours(day):
+    blocked = 0
+    for start,end in st.session_state.availability[day]:
+        blocked += max(0, time_to_float(end) - time_to_float(start))
+    return max(0, DAY_CAPACITY - blocked)
 
 # ---------------- STATE ----------------
+
 if "page" not in st.session_state:
     st.session_state.page = "home"
 
@@ -24,6 +39,7 @@ if "schedule" not in st.session_state:
     st.session_state.schedule = {d: [] for d in DAYS}
 
 # ---------------- HOME ----------------
+
 if st.session_state.page == "home":
 
     st.markdown("<h1 style='text-align:center;'>🌿 Welcome</h1>", unsafe_allow_html=True)
@@ -39,6 +55,7 @@ if st.session_state.page == "home":
             st.rerun()
 
 # ---------------- PLANNING ----------------
+
 if st.session_state.page == "planning":
 
     st.markdown("<h1 style='text-align:center;'>Plan Your Week</h1>", unsafe_allow_html=True)
@@ -69,8 +86,10 @@ if st.session_state.page == "planning":
         for i, task in enumerate(st.session_state.tasks):
             row = st.columns([5,1])
             with row[0]:
-                st.write(f"**{task['name']}**")
-                st.caption(f"{task['hours']} hrs • {task['priority']}")
+                st.markdown(f"""
+                **{task['name']}**  
+                {task['hours']} hrs • {task['priority']}
+                """)
             with row[1]:
                 if st.button("🗑️", key=f"del_{i}", use_container_width=True):
                     st.session_state.tasks.pop(i)
@@ -90,7 +109,7 @@ if st.session_state.page == "planning":
                 times.append(f"{h12}:{m:02d} {suffix}")
 
         for d in DAYS:
-            with st.expander(d):
+            with st.expander(f"{d} (Available: {calculate_available_hours(d):.1f} hrs)"):
                 start = st.selectbox(f"{d} Start", times, key=f"{d}_start")
                 end = st.selectbox(f"{d} End", times, key=f"{d}_end")
 
@@ -109,27 +128,44 @@ if st.session_state.page == "planning":
 
     st.markdown("---")
 
-    # -------- SCHEDULE --------
+    # -------- SMART SCHEDULING --------
     if st.button("Create My Week 🌿", use_container_width=True):
 
         sorted_tasks = sorted(
             st.session_state.tasks,
-            key=lambda x: PRIORITY_ORDER[x["priority"]],
+            key=lambda x: PRIORITY_WEIGHT[x["priority"]],
             reverse=True
         )
 
         st.session_state.schedule = {d: [] for d in DAYS}
+        remaining = {d: calculate_available_hours(d) for d in DAYS}
 
-        day_index = 0
         for task in sorted_tasks:
-            st.session_state.schedule[DAYS[day_index]].append(task)
-            day_index = (day_index + 1) % 7
+            placed = False
+            for d in DAYS:
+                if remaining[d] >= task["hours"]:
+                    st.session_state.schedule[d].append(task)
+                    remaining[d] -= task["hours"]
+                    placed = True
+                    break
+            if not placed:
+                st.warning(f"⚠️ Could not place '{task['name']}' due to lack of available time.")
 
+    # -------- OUTPUT --------
     if any(st.session_state.schedule[d] for d in DAYS):
+
         st.markdown("## Your Week Schedule")
 
         for d in DAYS:
             if st.session_state.schedule[d]:
-                st.markdown(f"### {d}")
+
+                used = sum(t["hours"] for t in st.session_state.schedule[d])
+                available = calculate_available_hours(d)
+
+                st.markdown(f"### {d} ({used:.1f}/{available:.1f} hrs used)")
+
+                if used > available:
+                    st.error("Overloaded day")
+
                 for task in st.session_state.schedule[d]:
-                    st.write(f"- {task['name']} ({task['hours']} hrs)")
+                    st.write(f"• {task['name']} ({task['hours']} hrs)")
