@@ -22,11 +22,25 @@ def time_to_float(t):
     return dt.hour + dt.minute/60
 
 def float_to_time(f):
+    # Normalize 24 -> 0
+    if f >= 24:
+        f = f - 24
+
     h = int(f)
-    m = int((f-h)*60)
+    m = int(round((f - h) * 60))
+
+    # Handle 60 minute rounding edge case
+    if m == 60:
+        m = 0
+        h += 1
+        if h == 24:
+            h = 0
+
     suffix = "AM" if h < 12 else "PM"
+
     h12 = h % 12
     h12 = 12 if h12 == 0 else h12
+
     return f"{h12}:{m:02d} {suffix}"
 
 def build_time_list():
