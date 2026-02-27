@@ -175,6 +175,14 @@ if st.session_state.page=="planning":
 
     if st.button("Create My Stress-Free Week 🌿", use_container_width=True):
 
+    sleep_start_f = time_to_float(st.session_state.sleep[0])
+    sleep_end_f = time_to_float(st.session_state.sleep[1])
+
+    # Prevent identical sleep times
+    if sleep_start_f == sleep_end_f:
+        st.error("Your sleep start and end time can't be the same. Adjust your rest window.")
+        st.stop()
+
         st.session_state.schedule={d:[] for d in DAYS}
 
         sorted_tasks=sorted(
