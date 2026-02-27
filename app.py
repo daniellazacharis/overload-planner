@@ -12,22 +12,21 @@ st.set_page_config(
 DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
 
 # =========================
-# FULL CALM LIGHT THEME
+# DESIGN SYSTEM
 # =========================
 st.markdown("""
 <style>
 
-/* Remove Streamlit header */
+/* Remove header */
 header[data-testid="stHeader"] {
     display: none;
 }
 
-/* Main background */
+/* Background */
 .stApp {
     background-color: #F8F5F0;
 }
 
-/* Top breathing room */
 .block-container {
     padding-top: 6rem !important;
 }
@@ -57,7 +56,7 @@ header[data-testid="stHeader"] {
 .section-sub {
     font-size: 14px;
     color: #7A8B80;
-    margin-bottom: 18px;
+    margin-bottom: 20px;
 }
 
 label {
@@ -70,7 +69,7 @@ div[data-testid="stTextInput"] > div > div,
 div[data-testid="stNumberInput"] > div > div,
 div[data-testid="stSelectbox"] > div {
     background-color: #FFFFFF !important;
-    border-radius: 14px !important;
+    border-radius: 16px !important;
     border: 1px solid #D8D2C6 !important;
 }
 
@@ -90,35 +89,44 @@ ul[role="listbox"] {
 /* Expander */
 div[data-testid="stExpander"] {
     background-color: #FFFFFF !important;
-    border-radius: 18px !important;
+    border-radius: 20px !important;
     border: 1px solid #E6E0D5 !important;
 }
 
-div[data-testid="stExpander"] summary {
-    background-color: #FFFFFF !important;
-    color: #2F4F3E !important;
-    font-weight: 600 !important;
-}
-
-/* Buttons */
+/* Buttons (Primary + Secondary) */
 .stButton > button {
     background-color: #7A9E7E;
     color: white;
-    border-radius: 30px;
-    padding: 14px 0px;
+    border-radius: 18px;
+    padding: 16px 28px;
     font-size: 16px;
     border: none;
+    font-weight: 500;
 }
 
 .stButton > button:hover {
     background-color: #6A8C6F;
 }
 
+/* Make trash buttons slightly darker and larger */
+button[key^="del_"] {
+    background-color: #6A8C6F !important;
+    padding: 14px !important;
+    border-radius: 16px !important;
+}
+
+/* Improve task text visibility */
+.task-item {
+    color: #2F4F3E;
+    font-size: 16px;
+    font-weight: 500;
+}
+
 </style>
 """, unsafe_allow_html=True)
 
 # =========================
-# SESSION STATE
+# STATE
 # =========================
 if "tasks" not in st.session_state:
     st.session_state.tasks = []
@@ -183,14 +191,14 @@ def generate_schedule():
     st.session_state.generated = True
 
 # =========================
-# PAGE CONTENT
+# PAGE
 # =========================
 st.markdown("<div class='big-title'>Plan Your Week</div>", unsafe_allow_html=True)
 st.markdown("<div class='subtitle'>Let’s organize your time in a way that actually feels doable.</div>", unsafe_allow_html=True)
 
 left, right = st.columns([1.2,1])
 
-# -------- LEFT COLUMN --------
+# -------- LEFT --------
 with left:
     st.markdown("<div class='section-title'>Start with your to-do list</div>", unsafe_allow_html=True)
     st.markdown("<div class='section-sub'>Add each task and estimate the time it might take.</div>", unsafe_allow_html=True)
@@ -213,19 +221,22 @@ with left:
             })
             st.rerun()
 
-    # Display tasks
+    # Display tasks clearly
     if st.session_state.tasks:
         st.divider()
         for i, task in enumerate(st.session_state.tasks):
             colA, colB = st.columns([0.85,0.15])
             with colA:
-                st.write(f"{task['name']} — {task['hours']}h")
+                st.markdown(
+                    f"<div class='task-item'>{task['name']} — {task['hours']}h</div>",
+                    unsafe_allow_html=True
+                )
             with colB:
                 if st.button("🗑️", key=f"del_{i}"):
                     st.session_state.tasks.pop(i)
                     st.rerun()
 
-# -------- RIGHT COLUMN --------
+# -------- RIGHT --------
 with right:
     st.markdown("<div class='section-title'>When are you unavailable?</div>", unsafe_allow_html=True)
     st.markdown("<div class='section-sub'>Block off work, class, sleep, or personal time.</div>", unsafe_allow_html=True)
@@ -250,13 +261,13 @@ with right:
                     })
                     st.rerun()
 
-# -------- CENTER GENERATE BUTTON --------
-st.markdown("<div style='text-align:center; margin-top:50px;'>", unsafe_allow_html=True)
+# -------- GENERATE BUTTON --------
+st.markdown("<div style='text-align:center; margin-top:60px;'>", unsafe_allow_html=True)
 if st.button("Create My Week 🌿"):
     generate_schedule()
 st.markdown("</div>", unsafe_allow_html=True)
 
-# -------- SHOW RESULTS --------
+# -------- RESULTS --------
 if st.session_state.generated:
     st.divider()
     availability = compute_availability()
