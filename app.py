@@ -12,52 +12,63 @@ st.set_page_config(
 DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
 
 # =========================
-# COMPLETE LIGHT OVERRIDE
+# FULL CALM LIGHT THEME
 # =========================
 st.markdown("""
 <style>
 
-/* ===== Base Background ===== */
+/* Remove Streamlit header (black bar) */
+header[data-testid="stHeader"] {
+    display: none;
+}
+
+/* Main background */
 .stApp {
     background-color: #F8F5F0;
 }
 
-/* Remove extra dark padding */
+/* Add top breathing room */
 .block-container {
-    padding-top: 2rem;
+    padding-top: 6rem !important;
 }
 
-/* ===== Typography ===== */
+/* ================= Typography ================= */
+
 .big-title {
     font-size: 48px;
     font-weight: 600;
     text-align: center;
     color: #2F4F3E;
-    margin-bottom: 15px;
+    margin-bottom: 10px;
 }
 
 .subtitle {
     text-align: center;
     font-size: 20px;
     color: #556B5D;
-    margin-bottom: 25px;
+    margin-bottom: 40px;
 }
 
-.support-text {
-    text-align: center;
-    font-size: 16px;
+.section-title {
+    font-size: 22px;
+    font-weight: 600;
+    color: #2F4F3E;
+}
+
+.section-sub {
+    font-size: 14px;
     color: #7A8B80;
-    max-width: 600px;
-    margin: 0 auto 50px auto;
+    margin-bottom: 18px;
 }
 
-/* ===== Labels ===== */
+/* Fix all labels */
 label {
     color: #2F4F3E !important;
     font-weight: 500 !important;
 }
 
-/* ===== TEXT INPUT ===== */
+/* ================= Text Input ================= */
+
 div[data-testid="stTextInput"] > div > div {
     background-color: #FFFFFF !important;
     border-radius: 14px !important;
@@ -69,7 +80,8 @@ div[data-testid="stTextInput"] input {
     background-color: #FFFFFF !important;
 }
 
-/* ===== NUMBER INPUT ===== */
+/* ================= Number Input ================= */
+
 div[data-testid="stNumberInput"] > div > div {
     background-color: #FFFFFF !important;
     border-radius: 14px !important;
@@ -81,13 +93,13 @@ div[data-testid="stNumberInput"] input {
     background-color: #FFFFFF !important;
 }
 
-/* Remove dark +/- container */
 div[data-testid="stNumberInput"] button {
     background-color: #FFFFFF !important;
     color: #2F4F3E !important;
 }
 
-/* ===== SELECTBOX ===== */
+/* ================= Selectbox ================= */
+
 div[data-testid="stSelectbox"] > div {
     background-color: #FFFFFF !important;
     border-radius: 14px !important;
@@ -105,32 +117,36 @@ ul[role="listbox"] {
     color: #2F4F3E !important;
 }
 
-/* ===== EXPANDER ===== */
+/* ================= Expander ================= */
+
 div[data-testid="stExpander"] {
     background-color: #FFFFFF !important;
-    border-radius: 16px !important;
+    border-radius: 18px !important;
     border: 1px solid #E6E0D5 !important;
+    padding: 8px 12px !important;
 }
 
 div[data-testid="stExpander"] summary {
     background-color: #FFFFFF !important;
     color: #2F4F3E !important;
     font-weight: 600 !important;
+    font-size: 16px !important;
 }
 
-/* Remove dark highlight when open */
 div[data-testid="stExpander"] summary:hover {
     background-color: #FDFCF9 !important;
 }
 
-/* ===== FOCUS STATES ===== */
+/* ================= Focus States ================= */
+
 input:focus, select:focus {
     outline: none !important;
     box-shadow: 0 0 0 2px #7A9E7E !important;
     border-color: #7A9E7E !important;
 }
 
-/* ===== BUTTONS ===== */
+/* ================= Buttons ================= */
+
 .stButton > button {
     background-color: #7A9E7E;
     color: white;
@@ -150,9 +166,6 @@ input:focus, select:focus {
 # =========================
 # SESSION STATE
 # =========================
-if "page" not in st.session_state:
-    st.session_state.page = "Home"
-
 if "tasks" not in st.session_state:
     st.session_state.tasks = []
 
@@ -216,13 +229,15 @@ def generate_schedule():
     st.session_state.generated = True
 
 # =========================
-# PLANNING PAGE ONLY
+# PAGE CONTENT
 # =========================
+
 st.markdown("<div class='big-title'>Plan Your Week</div>", unsafe_allow_html=True)
 st.markdown("<div class='subtitle'>Let’s organize your time in a way that actually feels doable.</div>", unsafe_allow_html=True)
 
 left, right = st.columns([1.2,1])
 
+# -------- LEFT COLUMN --------
 with left:
     st.markdown("<div class='section-title'>Start with your to-do list</div>", unsafe_allow_html=True)
     st.markdown("<div class='section-sub'>Add each task and estimate the time it might take.</div>", unsafe_allow_html=True)
@@ -244,6 +259,7 @@ with left:
                 "hours": hours
             })
 
+# -------- RIGHT COLUMN --------
 with right:
     st.markdown("<div class='section-title'>When are you unavailable?</div>", unsafe_allow_html=True)
     st.markdown("<div class='section-sub'>Block off work, class, sleep, or personal time.</div>", unsafe_allow_html=True)
