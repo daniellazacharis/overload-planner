@@ -65,6 +65,9 @@ if "commitments" not in st.session_state:
 if "schedule" not in st.session_state:
     st.session_state.schedule = {d: [] for d in DAYS}
 
+if "unscheduled" not in st.session_state:
+    st.session_state.unscheduled = []
+
 # ---------------- HOME ----------------
 
 if st.session_state.page == "home":
@@ -96,7 +99,7 @@ if st.session_state.page=="planning":
 
     left,right = st.columns([1.2,1])
 
-    # ---------------- LEFT SIDE ----------------
+    # ---------------- LEFT ----------------
     with left:
 
         st.subheader("What needs your energy this week?")
@@ -152,14 +155,14 @@ if st.session_state.page=="planning":
                         st.session_state.tasks.pop(i)
                         st.rerun()
 
-    # ---------------- RIGHT SIDE ----------------
+    # ---------------- RIGHT ----------------
     with right:
 
         st.subheader("Your baseline rest rhythm")
         st.caption("Set your typical sleep window so we protect your recovery first.")
 
-        sleep_start = st.selectbox("Sleep Start", TIMES, index=TIMES.index(st.session_state.sleep[0]))
-        sleep_end = st.selectbox("Sleep End", TIMES, index=TIMES.index(st.session_state.sleep[1]))
+        sleep_start = st.selectbox("Sleep Start", TIMES)
+        sleep_end = st.selectbox("Sleep End", TIMES)
         st.session_state.sleep=(sleep_start,sleep_end)
 
         st.markdown("---")
@@ -190,86 +193,106 @@ if st.session_state.page=="planning":
 
     st.markdown("---")
 
-    # ---------------- CREATE WEEK ----------------
+    # ---------------- SCHEDULING ENGINE ----------------
 
     if st.button("Create My Stress-Free Week 🌿", use_container_width=True):
+
+        st.session_state.schedule={d:[] for d in DAYS}
+        st.session_state.unscheduled=[]
 
         sleep_start_f = time_to_float(st.session_state.sleep[0])
         sleep_end_f = time_to_float(st.session_state.sleep[1])
 
-        # Guardrail
         if sleep_start_f == sleep_end_f:
             st.warning(
-                "Oops — it looks like your sleep window starts and ends at the same time. "
+                "Oops — your sleep window starts and ends at the same time. "
                 "We probably can’t get through the week with zero hours of rest. "
-                "Please adjust your sleep window so we can protect your energy."
+                "Please adjust your sleep window."
             )
             st.stop()
 
-        # Sleep duration
+        # Sleep duration check
         if sleep_start_f > sleep_end_f:
             sleep_duration = (24 - sleep_start_f) + sleep_end_f
         else:
             sleep_duration = sleep_end_f - sleep_start_f
 
-        # Fatigue warning
         if sleep_duration < 4:
-            st.warning(
-                "That sleep window looks quite short. Consistently getting less than "
-                "4 hours can significantly impact focus and recovery. "
-                "If this reflects a temporary week, that’s okay — just be mindful."
-            )
+            st.warning("That sleep window is very short. Less than 4 hours consistently may impact recovery.")
 
-        # Long sleep confirmation
         if sleep_duration > 12:
-            st.info(
-                "That’s a long rest window. If this is intentional, great — "
-                "just double-checking that your sleep times are entered correctly."
-            )
+            st.info("That’s a long sleep window. Just confirming it’s intentional.")
 
-        st.session_state.schedule={d:[] for d in DAYS}
+        # Build availability gaps
+        availability_map = {}
 
-        sorted_tasks=sorted(
+        for d in DAYS:
+
+            blocks=[]
+
+            # Sleep blocks
+            if sleep_start_f > sleep_end_f:
+                blocks.append((sleep_start_f,24))
+                blocks.append((0,sleep_end_f))
+                wake_time = sleep_end_f
+            else:
+                blocks.append((sleep_start_f,sleep_end_f))
+                wake_time = sleep_end_f
+
+            # Commitments
+            for c in st.session_state.commitments[d]:
+                blocks.append((time_to_float(c[1]), time_to_float(c[2])))
+
+            blocks.sort(key=lambda x:x[0])
+
+            gaps=[]
+            current = wake_time
+
+            for start,end in blocks:
+                if current < start:
+                    gaps.append((current,start))
+                current = max(current,end)
+
+            availability_map[d]=gaps
+
+        # Sort tasks by priority
+        tasks = sorted(
             st.session_state.tasks,
             key=lambda x: PRIORITY_WEIGHT[x["priority"]],
             reverse=True
         )
 
-        for d in DAYS:
+        # Place tasks across gaps
+        for task in tasks:
+            hours_remaining = task["hours"]
 
-            day_schedule=[]
+            for d in DAYS:
+                for gap_start,gap_end in availability_map[d]:
 
-            if sleep_start_f > sleep_end_f:
-                day_schedule.append(("Sleep", sleep_start_f,24))
-                day_schedule.append(("Sleep",0,sleep_end_f))
-                current=sleep_end_f
-            else:
-                day_schedule.append(("Sleep", sleep_start_f,sleep_end_f))
-                current=sleep_end_f
+                    gap_size = gap_end - gap_start
 
-            for c in st.session_state.commitments[d]:
-                day_schedule.append((c[0], time_to_float(c[1]), time_to_float(c[2])))
+                    if gap_size <= 0:
+                        continue
 
-            day_schedule.sort(key=lambda x:x[1])
+                    if hours_remaining <= 0:
+                        break
 
-            final_schedule=[]
-            for label,start,end in day_schedule:
+                    place = min(gap_size,hours_remaining)
 
-                if current < start:
-                    while sorted_tasks and current < start:
-                        task=sorted_tasks[0]
-                        duration=task["hours"]
-                        if current+duration<=start:
-                            final_schedule.append((task["name"],current,current+duration))
-                            current+=duration
-                            sorted_tasks.pop(0)
-                        else:
-                            break
+                    st.session_state.schedule[d].append(
+                        (task["name"], gap_start, gap_start+place)
+                    )
 
-                final_schedule.append((label,start,end))
-                current=end
+                    gap_start += place
+                    hours_remaining -= place
 
-            st.session_state.schedule[d]=final_schedule
+                if hours_remaining <= 0:
+                    break
+
+            if hours_remaining > 0:
+                st.session_state.unscheduled.append(
+                    (task["name"], hours_remaining)
+                )
 
     # ---------------- OUTPUT ----------------
 
@@ -283,3 +306,9 @@ if st.session_state.page=="planning":
                 st.markdown(f"### {d}")
                 for item in st.session_state.schedule[d]:
                     st.write(f"{item[0]}: {float_to_time(item[1])} → {float_to_time(item[2])}")
+
+        if st.session_state.unscheduled:
+            st.markdown("---")
+            st.warning("Some work could not be scheduled without overloading your week.")
+            for u in st.session_state.unscheduled:
+                st.write(f"{u[0]} — {u[1]:.1f} hrs remaining")
