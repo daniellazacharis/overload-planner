@@ -24,20 +24,16 @@ def time_to_float(t):
 def float_to_time(f):
     if f >= 24:
         f -= 24
-
     h = int(f)
     m = int(round((f-h)*60))
-
     if m == 60:
         m = 0
         h += 1
         if h == 24:
             h = 0
-
     suffix = "AM" if h < 12 else "PM"
     h12 = h % 12
     h12 = 12 if h12 == 0 else h12
-
     return f"{h12}:{m:02d} {suffix}"
 
 def build_time_list():
@@ -100,7 +96,7 @@ if st.session_state.page=="planning":
 
     left,right = st.columns([1.2,1])
 
-    # ---------------- LEFT ----------------
+    # ---------------- LEFT SIDE ----------------
     with left:
 
         st.subheader("What needs your energy this week?")
@@ -121,16 +117,41 @@ if st.session_state.page=="planning":
 
         st.markdown("---")
 
-        for i,task in enumerate(st.session_state.tasks):
-            row=st.columns([5,1])
-            with row[0]:
-                st.markdown(f"**{task['name']}**  \n{task['hours']} hrs • {task['priority']}")
-            with row[1]:
-                if st.button("🗑️",key=f"del_{i}",use_container_width=True):
-                    st.session_state.tasks.pop(i)
-                    st.rerun()
+        if st.session_state.tasks:
 
-    # ---------------- RIGHT ----------------
+            st.markdown("### Your Task List")
+            st.caption("These are the tasks you've added. Use the trash icon to remove one.")
+
+            for i, task in enumerate(st.session_state.tasks):
+
+                cols = st.columns([6,1], vertical_alignment="center")
+
+                with cols[0]:
+                    st.markdown(
+                        f"""
+                        <div style="
+                            background-color:#F4F8F4;
+                            padding:12px 16px;
+                            border-radius:12px;
+                            margin-bottom:8px;
+                        ">
+                            <div style="font-weight:600; font-size:15px;">
+                                {task['name']}
+                            </div>
+                            <div style="font-size:13px; opacity:0.7;">
+                                {task['hours']} hrs • {task['priority']} priority
+                            </div>
+                        </div>
+                        """,
+                        unsafe_allow_html=True
+                    )
+
+                with cols[1]:
+                    if st.button("🗑️", key=f"del_{i}", use_container_width=True):
+                        st.session_state.tasks.pop(i)
+                        st.rerun()
+
+    # ---------------- RIGHT SIDE ----------------
     with right:
 
         st.subheader("Your baseline rest rhythm")
@@ -168,86 +189,21 @@ if st.session_state.page=="planning":
 
     st.markdown("---")
 
-    # ---------------- SCHEDULING ENGINE ----------------
+    # ---------------- CREATE WEEK ----------------
 
     if st.button("Create My Stress-Free Week 🌿", use_container_width=True):
 
         sleep_start_f = time_to_float(st.session_state.sleep[0])
         sleep_end_f = time_to_float(st.session_state.sleep[1])
 
-        # Guardrail: identical sleep times
         if sleep_start_f == sleep_end_f:
             st.warning(
-                "Oops — it looks like your sleep window starts and ends at the same time. "
+                "Oops — your sleep window starts and ends at the same time. "
                 "We probably can’t get through the week with zero hours of rest. "
-                "Please adjust your sleep window so we can protect your energy."
+                "Please adjust your sleep window."
             )
             st.stop()
 
-        # Calculate sleep duration
-        if sleep_start_f > sleep_end_f:
-            sleep_duration = (24 - sleep_start_f) + sleep_end_f
-        else:
-            sleep_duration = sleep_end_f - sleep_start_f
-
-        # Gentle fatigue warning
-        if sleep_duration < 4:
-            st.warning(
-                "That sleep window looks very short. Consistently getting less than 4 hours "
-                "can significantly affect focus and recovery. Are you sure this reflects your typical week?"
-            )
-
-        # Long sleep confirmation
-        if sleep_duration > 12:
-            st.info(
-                "That’s quite a long rest window. If this is intentional, great — "
-                "just confirming that your sleep times are entered correctly."
-            )
-
-        # Calculate total available hours
-        total_available = 0
-
-        for d in DAYS:
-            blocks=[]
-
-            if sleep_start_f > sleep_end_f:
-                blocks.append((sleep_start_f,24))
-                blocks.append((0,sleep_end_f))
-            else:
-                blocks.append((sleep_start_f,sleep_end_f))
-
-            for c in st.session_state.commitments[d]:
-                blocks.append((time_to_float(c[1]), time_to_float(c[2])))
-
-            blocks.sort(key=lambda x:x[0])
-
-            current = sleep_end_f if sleep_start_f > sleep_end_f else sleep_end_f
-
-            for start,end in blocks:
-                if current < start:
-                    total_available += start - current
-                current = end
-
-        total_task_hours = sum(t["hours"] for t in st.session_state.tasks)
-
-        if total_task_hours > total_available:
-            overflow = total_task_hours - total_available
-
-            st.warning(
-                f"You’ve scheduled about {total_task_hours:.1f} hours of tasks, "
-                f"but only {total_available:.1f} hours are realistically available. "
-                f"Roughly {overflow:.1f} hours may not fit this week."
-            )
-
-            st.markdown("### Here are a few gentle options:")
-            st.markdown("""
-            - **Break larger tasks into smaller pieces** so they can fit into shorter gaps.
-            - **Reprioritize what truly needs to happen this week.**
-            - **Adjust fixed commitments if possible** to create breathing room.
-            - **Revisit your rest window carefully** only if it truly doesn’t reflect reality.
-            """)
-
-        # Build schedule
         st.session_state.schedule={d:[] for d in DAYS}
 
         sorted_tasks=sorted(
@@ -258,42 +214,42 @@ if st.session_state.page=="planning":
 
         for d in DAYS:
 
-            blocks=[]
-
-            if sleep_start_f > sleep_end_f:
-                blocks.append(("Sleep", sleep_start_f,24))
-                blocks.append(("Sleep",0,sleep_end_f))
-                wake_time = sleep_end_f
-            else:
-                blocks.append(("Sleep",sleep_start_f,sleep_end_f))
-                wake_time = sleep_end_f
-
-            for c in st.session_state.commitments[d]:
-                blocks.append((c[0], time_to_float(c[1]), time_to_float(c[2])))
-
-            blocks.sort(key=lambda x:x[1])
-
-            current = wake_time
             day_schedule=[]
 
-            for label,start,end in blocks:
+            # Sleep block
+            if sleep_start_f > sleep_end_f:
+                day_schedule.append(("Sleep", sleep_start_f,24))
+                day_schedule.append(("Sleep",0,sleep_end_f))
+                current=sleep_end_f
+            else:
+                day_schedule.append(("Sleep", sleep_start_f,sleep_end_f))
+                current=sleep_end_f
+
+            # Commitments
+            for c in st.session_state.commitments[d]:
+                day_schedule.append((c[0], time_to_float(c[1]), time_to_float(c[2])))
+
+            day_schedule.sort(key=lambda x:x[1])
+
+            # Fill tasks between commitments
+            final_schedule=[]
+            for label,start,end in day_schedule:
 
                 if current < start:
                     while sorted_tasks and current < start:
                         task=sorted_tasks[0]
                         duration=task["hours"]
-
                         if current+duration<=start:
-                            day_schedule.append((task["name"],current,current+duration))
+                            final_schedule.append((task["name"],current,current+duration))
                             current+=duration
                             sorted_tasks.pop(0)
                         else:
                             break
 
-                day_schedule.append((label,start,end))
+                final_schedule.append((label,start,end))
                 current=end
 
-            st.session_state.schedule[d]=day_schedule
+            st.session_state.schedule[d]=final_schedule
 
     # ---------------- OUTPUT ----------------
 
