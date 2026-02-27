@@ -114,10 +114,10 @@ details[open] > summary{
 
 .task-card{
     background:#FFFFFF;
-    padding:16px 20px;
+    padding:18px 22px;
     border-radius:18px;
-    margin-bottom:12px;
     border:1px solid #E6E0D5;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.04);
 }
 </style>
 """, unsafe_allow_html=True)
@@ -153,25 +153,37 @@ with left:
     st.markdown("<br>", unsafe_allow_html=True)
 
     # Display tasks
-    if st.session_state.tasks:
-        for i, task in enumerate(st.session_state.tasks):
-            cols = st.columns([6,1])
-            with cols[0]:
-                st.markdown(
-                    f"<div class='task-card'><b>{task['name']}</b><br>"
-                    f"{task['hours']} hrs • {task['priority']} priority</div>",
-                    unsafe_allow_html=True
-                )
-            with cols[1]:
-                if st.button("🗑️", key=f"delete_{i}"):
-                    st.session_state.tasks.pop(i)
-                    st.rerun()
+    # Display tasks
+if st.session_state.tasks:
 
-    st.markdown("<br>", unsafe_allow_html=True)
+    for i, task in enumerate(st.session_state.tasks):
 
-    if st.button("Create My Week 🌿"):
-        st.session_state.generated = True
+        col1, col2 = st.columns([5,1], vertical_alignment="center")
 
+        with col1:
+            st.markdown(
+                f"""
+                <div class='task-card'>
+                    <div style='font-weight:600; font-size:16px; color:#2F4F3E;'>
+                        {task['name']}
+                    </div>
+                    <div style='font-size:13px; color:#556B5D; margin-top:4px;'>
+                        {task['hours']} hrs • {task['priority']} priority
+                    </div>
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
+
+        with col2:
+            if st.button("🗑️", key=f"delete_{i}"):
+                st.session_state.tasks.pop(i)
+                st.rerun()
+
+st.markdown("<br>", unsafe_allow_html=True)
+
+if st.button("Create My Week 🌿"):
+    st.session_state.generated = True
 # =========================
 # RIGHT SIDE - AVAILABILITY
 # =========================
