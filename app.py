@@ -17,7 +17,7 @@ DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
 st.markdown("""
 <style>
 
-/* Remove Streamlit header (black bar) */
+/* Remove Streamlit header */
 header[data-testid="stHeader"] {
     display: none;
 }
@@ -27,13 +27,12 @@ header[data-testid="stHeader"] {
     background-color: #F8F5F0;
 }
 
-/* Add top breathing room */
+/* Top breathing room */
 .block-container {
     padding-top: 6rem !important;
 }
 
-/* ================= Typography ================= */
-
+/* Typography */
 .big-title {
     font-size: 48px;
     font-weight: 600;
@@ -61,92 +60,47 @@ header[data-testid="stHeader"] {
     margin-bottom: 18px;
 }
 
-/* Fix all labels */
 label {
     color: #2F4F3E !important;
     font-weight: 500 !important;
 }
 
-/* ================= Text Input ================= */
-
-div[data-testid="stTextInput"] > div > div {
-    background-color: #FFFFFF !important;
-    border-radius: 14px !important;
-    border: 1px solid #D8D2C6 !important;
-}
-
-div[data-testid="stTextInput"] input {
-    color: #2F4F3E !important;
-    background-color: #FFFFFF !important;
-}
-
-/* ================= Number Input ================= */
-
-div[data-testid="stNumberInput"] > div > div {
-    background-color: #FFFFFF !important;
-    border-radius: 14px !important;
-    border: 1px solid #D8D2C6 !important;
-}
-
-div[data-testid="stNumberInput"] input {
-    color: #2F4F3E !important;
-    background-color: #FFFFFF !important;
-}
-
-div[data-testid="stNumberInput"] button {
-    background-color: #FFFFFF !important;
-    color: #2F4F3E !important;
-}
-
-/* ================= Selectbox ================= */
-
+/* Inputs */
+div[data-testid="stTextInput"] > div > div,
+div[data-testid="stNumberInput"] > div > div,
 div[data-testid="stSelectbox"] > div {
     background-color: #FFFFFF !important;
     border-radius: 14px !important;
     border: 1px solid #D8D2C6 !important;
 }
 
+div[data-testid="stTextInput"] input,
+div[data-testid="stNumberInput"] input,
 div[data-testid="stSelectbox"] div {
     background-color: #FFFFFF !important;
     color: #2F4F3E !important;
 }
 
-/* Dropdown list */
+/* Dropdown */
 ul[role="listbox"] {
     background-color: #FFFFFF !important;
     color: #2F4F3E !important;
 }
 
-/* ================= Expander ================= */
-
+/* Expander */
 div[data-testid="stExpander"] {
     background-color: #FFFFFF !important;
     border-radius: 18px !important;
     border: 1px solid #E6E0D5 !important;
-    padding: 8px 12px !important;
 }
 
 div[data-testid="stExpander"] summary {
     background-color: #FFFFFF !important;
     color: #2F4F3E !important;
     font-weight: 600 !important;
-    font-size: 16px !important;
 }
 
-div[data-testid="stExpander"] summary:hover {
-    background-color: #FDFCF9 !important;
-}
-
-/* ================= Focus States ================= */
-
-input:focus, select:focus {
-    outline: none !important;
-    box-shadow: 0 0 0 2px #7A9E7E !important;
-    border-color: #7A9E7E !important;
-}
-
-/* ================= Buttons ================= */
-
+/* Buttons */
 .stButton > button {
     background-color: #7A9E7E;
     color: white;
@@ -231,7 +185,6 @@ def generate_schedule():
 # =========================
 # PAGE CONTENT
 # =========================
-
 st.markdown("<div class='big-title'>Plan Your Week</div>", unsafe_allow_html=True)
 st.markdown("<div class='subtitle'>Let’s organize your time in a way that actually feels doable.</div>", unsafe_allow_html=True)
 
@@ -258,6 +211,19 @@ with left:
                 "name": name,
                 "hours": hours
             })
+            st.rerun()
+
+    # Display tasks
+    if st.session_state.tasks:
+        st.divider()
+        for i, task in enumerate(st.session_state.tasks):
+            colA, colB = st.columns([0.85,0.15])
+            with colA:
+                st.write(f"{task['name']} — {task['hours']}h")
+            with colB:
+                if st.button("🗑️", key=f"del_{i}"):
+                    st.session_state.tasks.pop(i)
+                    st.rerun()
 
 # -------- RIGHT COLUMN --------
 with right:
@@ -282,3 +248,22 @@ with right:
                         "start": start,
                         "end": end
                     })
+                    st.rerun()
+
+# -------- CENTER GENERATE BUTTON --------
+st.markdown("<div style='text-align:center; margin-top:50px;'>", unsafe_allow_html=True)
+if st.button("Create My Week 🌿"):
+    generate_schedule()
+st.markdown("</div>", unsafe_allow_html=True)
+
+# -------- SHOW RESULTS --------
+if st.session_state.generated:
+    st.divider()
+    availability = compute_availability()
+
+    for d in DAYS:
+        planned = sum(t["hours"] for t in st.session_state.schedule[d])
+        st.markdown(f"### {d} — {planned}h planned / {availability[d]}h available")
+
+        for t in st.session_state.schedule[d]:
+            st.write(f"- {t['task']} ({t['hours']}h)")
