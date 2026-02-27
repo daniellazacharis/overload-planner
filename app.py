@@ -1,5 +1,5 @@
 import streamlit as st
-from datetime import datetime, timedelta
+from datetime import datetime
 
 st.set_page_config(
     page_title="Stress-Free Weekly Planner",
@@ -59,11 +59,17 @@ if "schedule" not in st.session_state:
 if st.session_state.page == "home":
 
     st.markdown("<h1 style='text-align:center;'>🌿 Welcome</h1>", unsafe_allow_html=True)
-    st.markdown("<h3 style='text-align:center;'>Build a week that feels balanced.</h3>", unsafe_allow_html=True)
+    st.markdown("<h2 style='text-align:center;'>Build a week that actually feels manageable.</h2>", unsafe_allow_html=True)
+    st.markdown(
+        "<p style='text-align:center; font-size:18px;'>Plan around your real life — protect your rest — and gently place what matters.</p>",
+        unsafe_allow_html=True
+    )
+
+    st.markdown("<br><br>", unsafe_allow_html=True)
 
     c1,c2,c3 = st.columns([2,1,2])
     with c2:
-        if st.button("Let’s Get Started 🌿", use_container_width=True):
+        if st.button("Start Building My Stress-Free Week 🌿", use_container_width=True):
             st.session_state.page="planning"
             st.rerun()
 
@@ -71,14 +77,19 @@ if st.session_state.page == "home":
 
 if st.session_state.page=="planning":
 
-    st.markdown("<h1 style='text-align:center;'>Plan Your Week</h1>", unsafe_allow_html=True)
+    st.markdown("<h1 style='text-align:center;'>🌿 Build Your Stress-Free Week</h1>", unsafe_allow_html=True)
+    st.markdown(
+        "<p style='text-align:center; font-size:18px;'>Let’s gently organize your time around what actually matters.</p>",
+        unsafe_allow_html=True
+    )
 
     left,right = st.columns([1.2,1])
 
     # ---------------- LEFT: TASKS ----------------
     with left:
 
-        st.subheader("To-Do List")
+        st.subheader("What needs your energy this week?")
+        st.caption("Add tasks and estimate how much focus they’ll realistically need.")
 
         name = st.text_input("Task Name")
         hours = st.number_input("Hours Needed", min_value=0.5, step=0.5)
@@ -107,15 +118,17 @@ if st.session_state.page=="planning":
     # ---------------- RIGHT: SLEEP + COMMITMENTS ----------------
     with right:
 
-        st.subheader("Sleep Schedule (Applies to All Days)")
+        st.subheader("Your baseline rest rhythm")
+        st.caption("Set your typical sleep window so we protect your recovery first.")
 
         sleep_start = st.selectbox("Sleep Start", TIMES, index=TIMES.index(st.session_state.sleep[0]))
         sleep_end = st.selectbox("Sleep End", TIMES, index=TIMES.index(st.session_state.sleep[1]))
-
         st.session_state.sleep=(sleep_start,sleep_end)
 
         st.markdown("---")
-        st.subheader("Fixed Weekly Commitments")
+
+        st.subheader("What’s already spoken for?")
+        st.caption("Add work, class, workouts, or anything that already owns part of your day.")
 
         for d in DAYS:
             with st.expander(d):
@@ -141,7 +154,8 @@ if st.session_state.page=="planning":
     st.markdown("---")
 
     # ---------------- SCHEDULING ENGINE ----------------
-    if st.button("Create My Week 🌿", use_container_width=True):
+
+    if st.button("Create My Stress-Free Week 🌿", use_container_width=True):
 
         st.session_state.schedule={d:[] for d in DAYS}
 
@@ -155,14 +169,14 @@ if st.session_state.page=="planning":
 
             blocks=[]
 
-            # Sleep
+            # Sleep block
             blocks.append(("Sleep",st.session_state.sleep[0],st.session_state.sleep[1]))
 
-            # Commitments
+            # Fixed commitments
             for c in st.session_state.commitments[d]:
                 blocks.append(c)
 
-            # Convert to float + sort
+            # Convert and sort
             blocks_float=[]
             for b in blocks:
                 blocks_float.append((b[0],time_to_float(b[1]),time_to_float(b[2])))
@@ -174,10 +188,11 @@ if st.session_state.page=="planning":
 
             for label,start,end in blocks_float:
 
-                # Fill gap before block
+                # Fill gap before block with tasks
                 while sorted_tasks and current < start:
                     task=sorted_tasks[0]
                     duration=task["hours"]
+
                     if current+duration<=start:
                         day_schedule.append((task["name"],current,current+duration))
                         current+=duration
@@ -192,9 +207,11 @@ if st.session_state.page=="planning":
             st.session_state.schedule[d]=day_schedule
 
     # ---------------- OUTPUT ----------------
+
     if any(st.session_state.schedule[d] for d in DAYS):
 
-        st.markdown("## Your Week Schedule")
+        st.markdown("## 🌿 Your Gentle Weekly Layout")
+        st.caption("Here’s how your week flows when rest and reality come first.")
 
         for d in DAYS:
             if st.session_state.schedule[d]:
