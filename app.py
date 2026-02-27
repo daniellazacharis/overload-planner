@@ -8,13 +8,11 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-DAYS = ["Monday",
-        "Tuesday",
-        "Wednesday",
-        "Thursday",
-        "Friday",
-        "Saturday",
-        "Sunday"]
+DAYS = [
+    "Monday","Tuesday","Wednesday",
+    "Thursday","Friday","Saturday","Sunday"
+]
+
 PRIORITY_WEIGHT = {"High":3,"Medium":2,"Low":1}
 
 # ---------------- TIME UTILITIES ----------------
@@ -52,7 +50,7 @@ if "tasks" not in st.session_state:
     st.session_state.tasks = []
 
 if "sleep" not in st.session_state:
-    st.session_state.sleep = ("12:00 AM","8:00 AM")
+    st.session_state.sleep = ("11:00 PM","7:00 AM")
 
 if "commitments" not in st.session_state:
     st.session_state.commitments = {d: [] for d in DAYS}
@@ -91,7 +89,7 @@ if st.session_state.page=="planning":
 
     left,right = st.columns([1.2,1])
 
-    # ---------------- LEFT: TASKS ----------------
+    # ---------------- LEFT ----------------
     with left:
 
         st.subheader("What needs your energy this week?")
@@ -121,7 +119,7 @@ if st.session_state.page=="planning":
                     st.session_state.tasks.pop(i)
                     st.rerun()
 
-    # ---------------- RIGHT: SLEEP + COMMITMENTS ----------------
+    # ---------------- RIGHT ----------------
     with right:
 
         st.subheader("Your baseline rest rhythm")
@@ -159,7 +157,7 @@ if st.session_state.page=="planning":
 
     st.markdown("---")
 
-    # ---------------- SCHEDULING ENGINE ----------------
+    # ---------------- FIXED SCHEDULING ENGINE ----------------
 
     if st.button("Create My Stress-Free Week 🌿", use_container_width=True):
 
@@ -171,42 +169,45 @@ if st.session_state.page=="planning":
             reverse=True
         )
 
+        sleep_start_f = time_to_float(st.session_state.sleep[0])
+        sleep_end_f = time_to_float(st.session_state.sleep[1])
+
         for d in DAYS:
 
             blocks=[]
 
-            # Sleep block
-            blocks.append(("Sleep",st.session_state.sleep[0],st.session_state.sleep[1]))
+            # Handle sleep crossing midnight
+            if sleep_start_f > sleep_end_f:
+                blocks.append(("Sleep", sleep_start_f, 24))
+                blocks.append(("Sleep", 0, sleep_end_f))
+                wake_time = sleep_end_f
+            else:
+                blocks.append(("Sleep", sleep_start_f, sleep_end_f))
+                wake_time = sleep_end_f
 
-            # Fixed commitments
+            # Add commitments
             for c in st.session_state.commitments[d]:
-                blocks.append(c)
+                blocks.append((c[0], time_to_float(c[1]), time_to_float(c[2])))
 
-            # Convert and sort
-            blocks_float=[]
-            for b in blocks:
-                blocks_float.append((b[0],time_to_float(b[1]),time_to_float(b[2])))
-
-            blocks_float.sort(key=lambda x:x[1])
+            blocks.sort(key=lambda x: x[1])
 
             day_schedule=[]
-            current=0
+            current = wake_time
 
-            for label,start,end in blocks_float:
+            for label,start,end in blocks:
 
-                # Fill gap before block with tasks
-                while sorted_tasks and current < start:
-                    task=sorted_tasks[0]
-                    duration=task["hours"]
+                if current < start:
+                    while sorted_tasks and current < start:
+                        task=sorted_tasks[0]
+                        duration=task["hours"]
 
-                    if current+duration<=start:
-                        day_schedule.append((task["name"],current,current+duration))
-                        current+=duration
-                        sorted_tasks.pop(0)
-                    else:
-                        break
+                        if current+duration<=start:
+                            day_schedule.append((task["name"],current,current+duration))
+                            current+=duration
+                            sorted_tasks.pop(0)
+                        else:
+                            break
 
-                # Add fixed block
                 day_schedule.append((label,start,end))
                 current=end
 
