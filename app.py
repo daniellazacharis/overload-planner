@@ -1,8 +1,10 @@
 import streamlit as st
 
-import pandas as pd
+import streamlit.components.v1 as components
 
 from datetime import datetime, date, timedelta
+
+import math
 
 st.set_page_config(
 
@@ -35,6 +37,34 @@ PRIORITY_WEIGHT = {"High": 3, "Medium": 2, "Low": 1}
 MAX_TASK_HOURS_PER_DAY = 6.0
 
 MAX_SINGLE_TASK_BLOCK = 2.0
+
+COLORS = {
+
+    "high": "#FDECEC",
+
+    "medium": "#FFF5E6",
+
+    "low": "#EEF7ED",
+
+    "sleep": "#EEF2FB",
+
+    "commitment": "#F3F3F3",
+
+    "border_high": "#F4C7C7",
+
+    "border_medium": "#F3D7A6",
+
+    "border_low": "#CFE6CC",
+
+    "border_sleep": "#CCD8F0",
+
+    "border_commitment": "#DDDDDD",
+
+    "text": "#2F5E46",
+
+    "muted": "#6E8577"
+
+}
 
 # ----------------------------------------------------
 
@@ -264,25 +294,25 @@ def get_day_load_label(task_hours):
 
     return "Overloaded"
 
-def get_item_icon_and_style(item):
+def get_item_colors(item):
 
     if item["type"] == "sleep":
 
-        return "🟦", "info"
+        return COLORS["sleep"], COLORS["border_sleep"]
 
     if item["type"] == "commitment":
 
-        return "⬜", "secondary"
+        return COLORS["commitment"], COLORS["border_commitment"]
 
     if item["priority"] == "High":
 
-        return "🟥", "error"
+        return COLORS["high"], COLORS["border_high"]
 
     if item["priority"] == "Medium":
 
-        return "🟨", "warning"
+        return COLORS["medium"], COLORS["border_medium"]
 
-    return "🟩", "success"
+    return COLORS["low"], COLORS["border_low"]
 
 def get_load_display(task_hours):
 
@@ -290,65 +320,453 @@ def get_load_display(task_hours):
 
     if label == "Light":
 
-        return "🟢 Light"
+        return "Light"
 
     if label == "Balanced":
 
-        return "🟡 Balanced"
+        return "Balanced"
 
     if label == "Heavy":
 
-        return "🟠 Heavy"
+        return "Heavy"
 
-    return "🔴 Overloaded"
+    return "Overloaded"
 
-def build_timeline_dataframe(schedule):
+def get_load_color(task_hours):
 
-    slot_times = []
+    label = get_day_load_label(task_hours)
 
-    current = 0.0
+    if label == "Light":
 
-    while current < 24.0:
+        return "#EEF7ED"
 
-        slot_times.append(current)
+    if label == "Balanced":
 
-        current += 0.5
+        return "#FFF5E6"
 
-    rows = []
+    if label == "Heavy":
 
-    for slot in slot_times:
+        return "#FFE8CC"
 
-        row = {"Time": float_to_time(slot)}
+    return "#FDECEC"
 
-        slot_end = slot + 0.5
+def clean_label(text, max_len=18):
 
-        for d in DAYS:
+    if len(text) <= max_len:
 
-            value = ""
+        return text
+
+    return text[:max_len - 1] + "…"
+
+# ----------------------------------------------------
+
+# ------------- VISUAL TIMELINE HTML -----------------
+
+# ----------------------------------------------------
+
+def build_visual_timeline_html(schedule, week_dates):
+
+    scale_marks = [0, 6, 12, 18, 24]
+
+    scale_labels = ["12 AM", "6 AM", "12 PM", "6 PM", "12 AM"]
+
+    html = f"""
+
+    <html>
+
+    <head>
+
+    <style>
+
+        body {{
+
+            margin: 0;
+
+            font-family: Arial, sans-serif;
+
+            color: {COLORS["text"]};
+
+            background: white;
+
+        }}
+
+        .timeline-shell {{
+
+            padding: 8px 4px 8px 4px;
+
+        }}
+
+        .timeline-legend {{
+
+            display: flex;
+
+            flex-wrap: wrap;
+
+            gap: 8px;
+
+            margin-bottom: 18px;
+
+        }}
+
+        .legend-item {{
+
+            display: inline-flex;
+
+            align-items: center;
+
+            gap: 8px;
+
+            padding: 6px 10px;
+
+            border-radius: 999px;
+
+            font-size: 12px;
+
+            font-weight: 600;
+
+            border: 1px solid #DDEAE1;
+
+            background: #F8FBF9;
+
+        }}
+
+        .swatch {{
+
+            width: 12px;
+
+            height: 12px;
+
+            border-radius: 3px;
+
+            display: inline-block;
+
+            border: 1px solid rgba(0,0,0,0.08);
+
+        }}
+
+        .timeline-day {{
+
+            border: 1px solid #DDEAE1;
+
+            border-radius: 18px;
+
+            padding: 14px 14px 16px 14px;
+
+            margin-bottom: 18px;
+
+            background: #FFFFFF;
+
+        }}
+
+        .timeline-head {{
+
+            display: flex;
+
+            justify-content: space-between;
+
+            align-items: baseline;
+
+            gap: 12px;
+
+            margin-bottom: 10px;
+
+        }}
+
+        .timeline-day-name {{
+
+            font-size: 20px;
+
+            font-weight: 700;
+
+            color: {COLORS["text"]};
+
+        }}
+
+        .timeline-day-date {{
+
+            font-size: 13px;
+
+            color: {COLORS["muted"]};
+
+        }}
+
+        .scale {{
+
+            position: relative;
+
+            height: 22px;
+
+            margin-bottom: 8px;
+
+        }}
+
+        .scale-line {{
+
+            position: absolute;
+
+            left: 0;
+
+            right: 0;
+
+            top: 14px;
+
+            height: 1px;
+
+            background: #DDEAE1;
+
+        }}
+
+        .tick {{
+
+            position: absolute;
+
+            top: 8px;
+
+            width: 1px;
+
+            height: 12px;
+
+            background: #DDEAE1;
+
+        }}
+
+        .tick-label {{
+
+            position: absolute;
+
+            top: 0;
+
+            transform: translateX(-50%);
+
+            font-size: 11px;
+
+            color: {COLORS["muted"]};
+
+            white-space: nowrap;
+
+        }}
+
+        .track {{
+
+            display: flex;
+
+            width: 100%;
+
+            height: 52px;
+
+            border-radius: 14px;
+
+            overflow: hidden;
+
+            border: 1px solid #DDEAE1;
+
+            background: #FAFCFB;
+
+        }}
+
+        .block {{
+
+            height: 100%;
+
+            box-sizing: border-box;
+
+            padding: 6px 8px;
+
+            border-right: 1px solid rgba(255,255,255,0.9);
+
+            display: flex;
+
+            flex-direction: column;
+
+            justify-content: center;
+
+            overflow: hidden;
+
+        }}
+
+        .block-title {{
+
+            font-size: 12px;
+
+            font-weight: 700;
+
+            line-height: 1.1;
+
+            white-space: nowrap;
+
+            overflow: hidden;
+
+            text-overflow: ellipsis;
+
+        }}
+
+        .block-time {{
+
+            font-size: 10px;
+
+            margin-top: 3px;
+
+            opacity: 0.82;
+
+            white-space: nowrap;
+
+            overflow: hidden;
+
+            text-overflow: ellipsis;
+
+        }}
+
+        .block-compact .block-time {{
+
+            display: none;
+
+        }}
+
+        .block-tiny .block-title,
+
+        .block-tiny .block-time {{
+
+            display: none;
+
+        }}
+
+        .note {{
+
+            font-size: 12px;
+
+            color: {COLORS["muted"]};
+
+            margin-top: 8px;
+
+        }}
+
+    </style>
+
+    </head>
+
+    <body>
+
+    <div class="timeline-shell">
+
+        <div class="timeline-legend">
+
+            <div class="legend-item"><span class="swatch" style="background:{COLORS["high"]};"></span>High Priority</div>
+
+            <div class="legend-item"><span class="swatch" style="background:{COLORS["medium"]};"></span>Medium Priority</div>
+
+            <div class="legend-item"><span class="swatch" style="background:{COLORS["low"]};"></span>Low Priority</div>
+
+            <div class="legend-item"><span class="swatch" style="background:{COLORS["sleep"]};"></span>Sleep</div>
+
+            <div class="legend-item"><span class="swatch" style="background:{COLORS["commitment"]};"></span>Fixed Commitment</div>
+
+        </div>
+
+    """
+
+    for d in DAYS:
+
+        html += f"""
+
+        <div class="timeline-day">
+
+            <div class="timeline-head">
+
+                <div class="timeline-day-name">{d}</div>
+
+                <div class="timeline-day-date">{format_date(week_dates[d])}</div>
+
+            </div>
+
+            <div class="scale">
+
+                <div class="scale-line"></div>
+
+        """
+
+        for mark, label in zip(scale_marks, scale_labels):
+
+            pct = (mark / 24) * 100
+
+            html += f"""
+
+                <div class="tick" style="left:{pct}%;"></div>
+
+                <div class="tick-label" style="left:{pct}%;">{label}</div>
+
+            """
+
+        html += """</div><div class="track">"""
+
+        if schedule[d]:
 
             for item in schedule[d]:
 
-                if item["start"] < slot_end and item["end"] > slot:
+                width_pct = max(((item["end"] - item["start"]) / 24) * 100, 0.6)
 
-                    if item["type"] == "sleep":
+                bg, border = get_item_colors(item)
 
-                        value = "Sleep"
+                label = clean_label(item["label"], 18)
 
-                    elif item["type"] == "commitment":
+                start_text = float_to_time(item["start"])
 
-                        value = item["label"]
+                end_text = float_to_time(item["end"])
 
-                    else:
+                block_class = ""
 
-                        value = item["label"]
+                if width_pct < 7:
 
-                    break
+                    block_class = "block-tiny"
 
-            row[d] = value
+                elif width_pct < 12:
 
-        rows.append(row)
+                    block_class = "block-compact"
 
-    return pd.DataFrame(rows)
+                html += f"""
+
+                <div class="block {block_class}" style="width:{width_pct}%; background:{bg}; border-right:1px solid {border};">
+
+                    <div class="block-title">{label}</div>
+
+                    <div class="block-time">{start_text} → {end_text}</div>
+
+                </div>
+
+                """
+
+        else:
+
+            html += """
+
+                <div class="block" style="width:100%; background:#FFFFFF;">
+
+                    <div class="block-title">No scheduled items</div>
+
+                </div>
+
+            """
+
+        html += """
+
+            </div>
+
+            <div class="note">Blocks are sized based on duration across the day.</div>
+
+        </div>
+
+        """
+
+    html += """
+
+    </div>
+
+    </body>
+
+    </html>
+
+    """
+
+    return html
 
 # ----------------------------------------------------
 
@@ -465,6 +883,24 @@ html, body, [class*="css"] {
     line-height: 1.8;
 
     color: #4F695C;
+
+}
+
+.clean-pill {
+
+    display: inline-block;
+
+    padding: 6px 12px;
+
+    border-radius: 999px;
+
+    font-size: 12px;
+
+    font-weight: 700;
+
+    margin-top: 6px;
+
+    margin-bottom: 10px;
 
 }
 
@@ -1004,7 +1440,15 @@ if st.session_state.page == "planning":
 
 <div class="legend-line">
 
-🟥 High Priority Task &nbsp;&nbsp; 🟨 Medium Priority Task &nbsp;&nbsp; 🟩 Low Priority Task &nbsp;&nbsp; 🟦 Sleep &nbsp;&nbsp; ⬜ Fixed Commitment
+High Priority &nbsp;&nbsp; | &nbsp;&nbsp;
+
+Medium Priority &nbsp;&nbsp; | &nbsp;&nbsp;
+
+Low Priority &nbsp;&nbsp; | &nbsp;&nbsp;
+
+Sleep &nbsp;&nbsp; | &nbsp;&nbsp;
+
+Fixed Commitment
 
 </div>
 
@@ -1030,39 +1474,73 @@ if st.session_state.page == "planning":
 
             st.caption(format_date(current_date))
 
-            st.write(get_load_display(day_task_hours))
+            load_label = get_load_display(day_task_hours)
+
+            load_bg = get_load_color(day_task_hours)
+
+            st.markdown(
+
+                f"<div class='clean-pill' style='background:{load_bg}; color:{COLORS['text']};'>{load_label}</div>",
+
+                unsafe_allow_html=True
+
+            )
 
             if st.session_state.schedule[d]:
 
                 for item in st.session_state.schedule[d]:
 
-                    icon, style_type = get_item_icon_and_style(item)
+                    bg, border = get_item_colors(item)
 
                     if item["type"] == "sleep":
 
-                        label = f"{icon} **{item['label']}**"
-
                         note = "Sleep window"
+
+                        tag = "Sleep"
 
                     elif item["type"] == "commitment":
 
-                        label = f"{icon} **{item['label']}**"
-
                         note = "Fixed commitment"
+
+                        tag = "Commitment"
 
                     else:
 
-                        label = f"{icon} **{item['label']}**"
-
                         note = f"Task • {item['priority']} priority • Due {format_date(item['due_date'])}"
+
+                        tag = item["priority"]
 
                     with st.container(border=True):
 
-                        st.markdown(label)
+                        st.markdown(
 
-                        st.caption(f"{float_to_time(item['start'])} → {float_to_time(item['end'])}")
+                            f"""
 
-                        st.caption(note)
+<div style="
+
+    background:{bg};
+
+    border-left:8px solid {border};
+
+    padding:14px;
+
+    border-radius:10px;
+
+">
+
+    <div style="font-weight:700; color:{COLORS['text']};">{item['label']}</div>
+
+    <div style="margin-top:4px; color:{COLORS['muted']};">{float_to_time(item['start'])} → {float_to_time(item['end'])}</div>
+
+    <div style="margin-top:6px; font-size:13px; color:{COLORS['muted']};">{note}</div>
+
+</div>
+
+                            """,
+
+                            unsafe_allow_html=True
+
+                        )
 
             else:
 
@@ -1070,11 +1548,13 @@ if st.session_state.page == "planning":
 
         with st.expander("🌿 Visual Timeline", expanded=False):
 
-            st.caption("A half-hour view of your week. Best viewed on a wider screen.")
+            st.caption("A cleaner visual timeline of your week with continuous blocks by duration.")
 
-            timeline_df = build_timeline_dataframe(st.session_state.schedule)
+            timeline_html = build_visual_timeline_html(st.session_state.schedule, week_dates)
 
-            st.dataframe(timeline_df, use_container_width=True, hide_index=True)
+            timeline_height = 220 + (len(DAYS) * 110)
+
+            components.html(timeline_html, height=timeline_height, scrolling=False)
 
         if st.session_state.unscheduled:
 
