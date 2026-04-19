@@ -313,7 +313,7 @@ def build_visual_timeline_html(schedule, week_dates):
             <div class="legend-item"><span class="swatch" style="background:{COLORS["commitment"]};"></span>Fixed Commitment</div>
         </div>
     """
-   for d in DAYS:
+    for d in DAYS:
         html += f"""
         <div class="timeline-day">
             <div class="timeline-head">
