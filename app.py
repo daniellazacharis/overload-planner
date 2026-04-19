@@ -2,6 +2,8 @@ import streamlit as st
 
 import streamlit.components.v1 as components
 
+import textwrap
+
 from datetime import datetime, date, timedelta
 
 st.set_page_config(
@@ -63,6 +65,16 @@ COLORS = {
     "muted": "#6E8577"
 
 }
+
+# ----------------------------------------------------
+
+# ------------------ HTML HELPER ---------------------
+
+# ----------------------------------------------------
+
+def render_html(html: str):
+
+    st.markdown(textwrap.dedent(html).strip(), unsafe_allow_html=True)
 
 # ----------------------------------------------------
 
@@ -1458,33 +1470,7 @@ if st.session_state.page == "planning":
 
                 st.markdown(
 
-                    f"""
-
-                    <div style="
-
-                        background:{bg};
-
-                        border:1px solid #DDEAE1;
-
-                        border-radius:999px;
-
-                        padding:6px 10px;
-
-                        text-align:center;
-
-                        font-size:12px;
-
-                        font-weight:700;
-
-                        color:{COLORS["text"]};
-
-                    ">
-
-                        {label}
-
-                    </div>
-
-                    """,
+                    f'<div style="background:{bg}; border:1px solid #DDEAE1; border-radius:999px; padding:6px 10px; text-align:center; font-size:12px; font-weight:700; color:{COLORS["text"]};">{label}</div>',
 
                     unsafe_allow_html=True
 
@@ -1514,33 +1500,7 @@ if st.session_state.page == "planning":
 
             st.markdown(
 
-                f"""
-
-                <div style="
-
-                    display:inline-block;
-
-                    background:{load_bg};
-
-                    color:{COLORS["text"]};
-
-                    padding:6px 12px;
-
-                    border-radius:999px;
-
-                    font-size:12px;
-
-                    font-weight:700;
-
-                    margin-bottom:12px;
-
-                ">
-
-                    {load_label}
-
-                </div>
-
-                """,
+                f'<div style="display:inline-block; background:{load_bg}; color:{COLORS["text"]}; padding:6px 12px; border-radius:999px; font-size:12px; font-weight:700; margin-bottom:12px;">{load_label}</div>',
 
                 unsafe_allow_html=True
 
@@ -1568,29 +1528,7 @@ if st.session_state.page == "planning":
 
                         st.markdown(
 
-                            f"""
-
-                            <div style="
-
-                                background:{bg};
-
-                                border-left:8px solid {border};
-
-                                padding:14px;
-
-                                border-radius:10px;
-
-                            ">
-
-                                <div style="font-weight:700; color:{COLORS['text']};">{item['label']}</div>
-
-                                <div style="margin-top:4px; color:{COLORS['muted']};">{float_to_time(item['start'])} → {float_to_time(item['end'])}</div>
-
-                                <div style="margin-top:6px; font-size:13px; color:{COLORS['muted']};">{note}</div>
-
-                            </div>
-
-                            """,
+                            f'<div style="background:{bg}; border-left:8px solid {border}; padding:14px; border-radius:10px;"><div style="font-weight:700; color:{COLORS["text"]};">{item["label"]}</div><div style="margin-top:4px; color:{COLORS["muted"]};">{float_to_time(item["start"])} → {float_to_time(item["end"])}</div><div style="margin-top:6px; font-size:13px; color:{COLORS["muted"]};">{note}</div></div>',
 
                             unsafe_allow_html=True
 
