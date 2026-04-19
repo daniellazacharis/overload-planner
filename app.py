@@ -2,8 +2,6 @@ import streamlit as st
 
 import streamlit.components.v1 as components
 
-import textwrap
-
 from datetime import datetime, date, timedelta
 
 st.set_page_config(
@@ -68,27 +66,17 @@ COLORS = {
 
 # ----------------------------------------------------
 
-# ------------------ HTML HELPER ---------------------
-
-# ----------------------------------------------------
-
-def render_html(html: str):
-
-    st.markdown(textwrap.dedent(html).strip(), unsafe_allow_html=True)
-
-# ----------------------------------------------------
-
 # ------------------ TIME HELPERS --------------------
 
 # ----------------------------------------------------
 
-def time_to_float(t):
+def time_to_float(t: str) -> float:
 
     dt = datetime.strptime(t, "%I:%M %p")
 
     return dt.hour + dt.minute / 60
 
-def float_to_time(f):
+def float_to_time(f: float) -> str:
 
     f = f % 24
 
@@ -130,17 +118,17 @@ def build_times():
 
 TIMES = build_times()
 
-def format_date(d):
+def format_date(d: date) -> str:
 
     return d.strftime("%b %d, %Y")
 
-def get_default_monday():
+def get_default_monday() -> date:
 
     today = date.today()
 
     return today - timedelta(days=today.weekday())
 
-def get_sleep_duration(start_f, end_f):
+def get_sleep_duration(start_f: float, end_f: float) -> float:
 
     if start_f == end_f:
 
@@ -284,7 +272,7 @@ def sort_schedule_items(items):
 
     return sorted(items, key=lambda x: x["start"])
 
-def get_day_load_label(task_hours):
+def get_day_load_label(task_hours: float) -> str:
 
     if task_hours < 2:
 
@@ -300,7 +288,7 @@ def get_day_load_label(task_hours):
 
     return "Overloaded"
 
-def get_load_color(task_hours):
+def get_load_color(task_hours: float) -> str:
 
     label = get_day_load_label(task_hours)
 
@@ -864,62 +852,6 @@ html, body, [class*="css"] {
 
 }
 
-.legend-wrap {
-
-    display: flex;
-
-    flex-wrap: wrap;
-
-    gap: 8px;
-
-    margin-bottom: 18px;
-
-}
-
-.legend-tag {
-
-    padding: 6px 12px;
-
-    border-radius: 999px;
-
-    font-size: 12px;
-
-    font-weight: 700;
-
-    border: 1px solid #DDEAE1;
-
-    color: #2F5E46;
-
-}
-
-.legend-high { background: #FDECEC; border-color: #F4C7C7; }
-
-.legend-medium { background: #FFF5E6; border-color: #F3D7A6; }
-
-.legend-low { background: #EEF7ED; border-color: #CFE6CC; }
-
-.legend-sleep { background: #EEF2FB; border-color: #CCD8F0; }
-
-.legend-commitment { background: #F3F3F3; border-color: #DDDDDD; }
-
-.clean-pill {
-
-    display: inline-block;
-
-    padding: 6px 12px;
-
-    border-radius: 999px;
-
-    font-size: 12px;
-
-    font-weight: 700;
-
-    margin-top: 6px;
-
-    margin-bottom: 12px;
-
-}
-
 @media (max-width: 900px) {
 
     .home-title { font-size: 2.4rem; }
@@ -1008,8 +940,6 @@ if st.session_state.page == "planning":
 
     st.markdown("---")
 
-    # ---------------- TASKS ----------------
-
     st.subheader("What needs your attention this week?")
 
     st.caption("Add each task, estimate the time it realistically needs, and choose its due date.")
@@ -1092,8 +1022,6 @@ if st.session_state.page == "planning":
 
     st.markdown("---")
 
-    # ---------------- SLEEP ----------------
-
     st.subheader("Your Rest Window")
 
     st.caption("Set your consistent sleep rhythm for the week.")
@@ -1102,31 +1030,13 @@ if st.session_state.page == "planning":
 
     current_sleep_end = st.session_state.sleep[1]
 
-    sleep_start = st.selectbox(
+    sleep_start = st.selectbox("Sleep Start", TIMES, index=TIMES.index(current_sleep_start))
 
-        "Sleep Start",
-
-        TIMES,
-
-        index=TIMES.index(current_sleep_start)
-
-    )
-
-    sleep_end = st.selectbox(
-
-        "Sleep End",
-
-        TIMES,
-
-        index=TIMES.index(current_sleep_end)
-
-    )
+    sleep_end = st.selectbox("Sleep End", TIMES, index=TIMES.index(current_sleep_end))
 
     st.session_state.sleep = (sleep_start, sleep_end)
 
     st.markdown("---")
-
-    # ---------------- COMMITMENTS ----------------
 
     st.subheader("What’s already scheduled?")
 
@@ -1175,8 +1085,6 @@ if st.session_state.page == "planning":
                             st.rerun()
 
     st.markdown("---")
-
-    # ---------------- GENERATE BUTTON ----------------
 
     if st.button("Create My Week 🌿", use_container_width=True):
 
@@ -1232,13 +1140,7 @@ if st.session_state.page == "planning":
 
                 label_text = " / ".join(labels)
 
-                if "sleep" in item_types and len(set(item_types)) == 1:
-
-                    block_type = "sleep"
-
-                else:
-
-                    block_type = "commitment"
+                block_type = "sleep" if ("sleep" in item_types and len(set(item_types)) == 1) else "commitment"
 
                 day_items.append({
 
@@ -1367,8 +1269,6 @@ if st.session_state.page == "planning":
                 })
 
         st.session_state.generation_complete = True
-
-    # ---------------- OUTPUT ----------------
 
     if st.session_state.generation_complete:
 
