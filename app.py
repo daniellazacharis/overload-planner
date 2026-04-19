@@ -2,9 +2,9 @@ import streamlit as st
 
 import streamlit.components.v1 as components
 
-from datetime import datetime, date, timedelta
+import textwrap
 
-import math
+from datetime import datetime, date, timedelta
 
 st.set_page_config(
 
@@ -68,9 +68,13 @@ COLORS = {
 
 # ----------------------------------------------------
 
-# ------------------ TIME HELPERS --------------------
+# ------------------ HELPERS -------------------------
 
 # ----------------------------------------------------
+
+def render_html(html: str):
+
+    st.markdown(textwrap.dedent(html).strip(), unsafe_allow_html=True)
 
 def time_to_float(t):
 
@@ -140,7 +144,75 @@ def get_sleep_duration(start_f, end_f):
 
     return end_f - start_f
 
-TIMES = build_times()
+def total_gap_hours(gaps):
+
+    return sum(end - start for start, end in gaps)
+
+def sort_schedule_items(items):
+
+    return sorted(items, key=lambda x: x["start"])
+
+def get_day_load_label(task_hours):
+
+    if task_hours < 2:
+
+        return "Light"
+
+    elif task_hours < 4:
+
+        return "Balanced"
+
+    elif task_hours < 6:
+
+        return "Heavy"
+
+    return "Overloaded"
+
+def get_item_colors(item):
+
+    if item["type"] == "sleep":
+
+        return COLORS["sleep"], COLORS["border_sleep"]
+
+    if item["type"] == "commitment":
+
+        return COLORS["commitment"], COLORS["border_commitment"]
+
+    if item["priority"] == "High":
+
+        return COLORS["high"], COLORS["border_high"]
+
+    if item["priority"] == "Medium":
+
+        return COLORS["medium"], COLORS["border_medium"]
+
+    return COLORS["low"], COLORS["border_low"]
+
+def get_load_color(task_hours):
+
+    label = get_day_load_label(task_hours)
+
+    if label == "Light":
+
+        return "#EEF7ED"
+
+    if label == "Balanced":
+
+        return "#FFF5E6"
+
+    if label == "Heavy":
+
+        return "#FFE8CC"
+
+    return "#FDECEC"
+
+def clean_label(text, max_len=18):
+
+    if len(text) <= max_len:
+
+        return text
+
+    return text[:max_len - 1] + "…"
 
 # ----------------------------------------------------
 
@@ -238,10 +310,6 @@ def build_gaps_from_blocked(merged_blocked):
 
     return gaps
 
-def total_gap_hours(gaps):
-
-    return sum(end - start for start, end in gaps)
-
 def place_chunk_into_gaps(gaps, chunk_hours):
 
     remaining = chunk_hours
@@ -273,90 +341,6 @@ def place_chunk_into_gaps(gaps, chunk_hours):
             break
 
     return placed_segments, remaining
-
-def sort_schedule_items(items):
-
-    return sorted(items, key=lambda x: x["start"])
-
-def get_day_load_label(task_hours):
-
-    if task_hours < 2:
-
-        return "Light"
-
-    elif task_hours < 4:
-
-        return "Balanced"
-
-    elif task_hours < 6:
-
-        return "Heavy"
-
-    return "Overloaded"
-
-def get_item_colors(item):
-
-    if item["type"] == "sleep":
-
-        return COLORS["sleep"], COLORS["border_sleep"]
-
-    if item["type"] == "commitment":
-
-        return COLORS["commitment"], COLORS["border_commitment"]
-
-    if item["priority"] == "High":
-
-        return COLORS["high"], COLORS["border_high"]
-
-    if item["priority"] == "Medium":
-
-        return COLORS["medium"], COLORS["border_medium"]
-
-    return COLORS["low"], COLORS["border_low"]
-
-def get_load_display(task_hours):
-
-    label = get_day_load_label(task_hours)
-
-    if label == "Light":
-
-        return "Light"
-
-    if label == "Balanced":
-
-        return "Balanced"
-
-    if label == "Heavy":
-
-        return "Heavy"
-
-    return "Overloaded"
-
-def get_load_color(task_hours):
-
-    label = get_day_load_label(task_hours)
-
-    if label == "Light":
-
-        return "#EEF7ED"
-
-    if label == "Balanced":
-
-        return "#FFF5E6"
-
-    if label == "Heavy":
-
-        return "#FFE8CC"
-
-    return "#FDECEC"
-
-def clean_label(text, max_len=18):
-
-    if len(text) <= max_len:
-
-        return text
-
-    return text[:max_len - 1] + "…"
 
 # ----------------------------------------------------
 
@@ -812,7 +796,7 @@ if "generation_complete" not in st.session_state:
 
 # ----------------------------------------------------
 
-st.markdown("""
+render_html("""
 
 <style>
 
@@ -876,16 +860,6 @@ html, body, [class*="css"] {
 
 }
 
-.legend-line {
-
-    font-size: 14px;
-
-    line-height: 1.8;
-
-    color: #4F695C;
-
-}
-
 .clean-pill {
 
     display: inline-block;
@@ -900,7 +874,85 @@ html, body, [class*="css"] {
 
     margin-top: 6px;
 
-    margin-bottom: 10px;
+    margin-bottom: 12px;
+
+}
+
+.legend-wrap {
+
+    display: flex;
+
+    flex-wrap: wrap;
+
+    gap: 8px;
+
+    margin-bottom: 18px;
+
+}
+
+.legend-tag {
+
+    padding: 6px 12px;
+
+    border-radius: 999px;
+
+    font-size: 12px;
+
+    font-weight: 700;
+
+    border: 1px solid #DDEAE1;
+
+    color: #2F5E46;
+
+}
+
+.legend-high { background: #FDECEC; border-color: #F4C7C7; }
+
+.legend-medium { background: #FFF5E6; border-color: #F3D7A6; }
+
+.legend-low { background: #EEF7ED; border-color: #CFE6CC; }
+
+.legend-sleep { background: #EEF2FB; border-color: #CCD8F0; }
+
+.legend-commitment { background: #F3F3F3; border-color: #DDDDDD; }
+
+.weekly-card {
+
+    padding: 14px;
+
+    border-radius: 12px;
+
+    margin-bottom: 12px;
+
+}
+
+.card-title {
+
+    font-weight: 700;
+
+    color: #2F5E46;
+
+    font-size: 16px;
+
+}
+
+.card-time {
+
+    margin-top: 4px;
+
+    color: #6E8577;
+
+    font-size: 14px;
+
+}
+
+.card-note {
+
+    margin-top: 6px;
+
+    color: #6E8577;
+
+    font-size: 13px;
 
 }
 
@@ -916,7 +968,7 @@ html, body, [class*="css"] {
 
 </style>
 
-""", unsafe_allow_html=True)
+""")
 
 # ----------------------------------------------------
 
@@ -926,17 +978,15 @@ html, body, [class*="css"] {
 
 if st.session_state.page == "home":
 
-    st.markdown("<div class='home-title'>🌿 Welcome</div>", unsafe_allow_html=True)
+    render_html("""
 
-    st.markdown("<div class='home-subtitle'>Build a week that feels balanced.</div>", unsafe_allow_html=True)
+<div class="home-title">🌿 Welcome</div>
 
-    st.markdown(
+<div class="home-subtitle">Build a week that feels balanced.</div>
 
-        "<div class='home-text'>Plan around your real life, protect your rest, and place what matters — gently.</div>",
+<div class="home-text">Plan around your real life, protect your rest, and place what matters — gently.</div>
 
-        unsafe_allow_html=True
-
-    )
+""")
 
     c1, c2, c3 = st.columns([1, 1.4, 1])
 
@@ -1434,29 +1484,23 @@ if st.session_state.page == "planning":
 
         st.caption("Your schedule is generated around your rest window, existing commitments, task priorities, and due dates.")
 
-        st.markdown(
+        render_html("""
 
-            """
+<div class="legend-wrap">
 
-<div class="legend-line">
+    <div class="legend-tag legend-high">High Priority</div>
 
-High Priority &nbsp;&nbsp; | &nbsp;&nbsp;
+    <div class="legend-tag legend-medium">Medium Priority</div>
 
-Medium Priority &nbsp;&nbsp; | &nbsp;&nbsp;
+    <div class="legend-tag legend-low">Low Priority</div>
 
-Low Priority &nbsp;&nbsp; | &nbsp;&nbsp;
+    <div class="legend-tag legend-sleep">Sleep</div>
 
-Sleep &nbsp;&nbsp; | &nbsp;&nbsp;
-
-Fixed Commitment
+    <div class="legend-tag legend-commitment">Fixed Commitment</div>
 
 </div>
 
-            """,
-
-            unsafe_allow_html=True
-
-        )
+""")
 
         for d in DAYS:
 
@@ -1474,17 +1518,15 @@ Fixed Commitment
 
             st.caption(format_date(current_date))
 
-            load_label = get_load_display(day_task_hours)
-
             load_bg = get_load_color(day_task_hours)
 
-            st.markdown(
+            load_label = get_day_load_label(day_task_hours)
 
-                f"<div class='clean-pill' style='background:{load_bg}; color:{COLORS['text']};'>{load_label}</div>",
+            render_html(f"""
 
-                unsafe_allow_html=True
+<div class="clean-pill" style="background:{load_bg}; color:{COLORS['text']};">{load_label}</div>
 
-            )
+""")
 
             if st.session_state.schedule[d]:
 
@@ -1496,51 +1538,27 @@ Fixed Commitment
 
                         note = "Sleep window"
 
-                        tag = "Sleep"
-
                     elif item["type"] == "commitment":
 
                         note = "Fixed commitment"
-
-                        tag = "Commitment"
 
                     else:
 
                         note = f"Task • {item['priority']} priority • Due {format_date(item['due_date'])}"
 
-                        tag = item["priority"]
+                    render_html(f"""
 
-                    with st.container(border=True):
+<div class="weekly-card" style="background:{bg}; border-left:8px solid {border};">
 
-                        st.markdown(
+    <div class="card-title">{item['label']}</div>
 
-                            f"""
+    <div class="card-time">{float_to_time(item['start'])} → {float_to_time(item['end'])}</div>
 
-<div style="
-
-    background:{bg};
-
-    border-left:8px solid {border};
-
-    padding:14px;
-
-    border-radius:10px;
-
-">
-
-    <div style="font-weight:700; color:{COLORS['text']};">{item['label']}</div>
-
-    <div style="margin-top:4px; color:{COLORS['muted']};">{float_to_time(item['start'])} → {float_to_time(item['end'])}</div>
-
-    <div style="margin-top:6px; font-size:13px; color:{COLORS['muted']};">{note}</div>
+    <div class="card-note">{note}</div>
 
 </div>
 
-                            """,
-
-                            unsafe_allow_html=True
-
-                        )
+""")
 
             else:
 
