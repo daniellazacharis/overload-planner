@@ -1,7 +1,5 @@
 import streamlit as st
 
-import textwrap
-
 from datetime import datetime, date, timedelta
 
 st.set_page_config(
@@ -104,15 +102,11 @@ def get_sleep_duration(start_f, end_f):
 
         return 0
 
-    if start_f > end_f:
+    if start_f > sleep_end_f:
 
         return (24 - start_f) + end_f
 
     return end_f - start_f
-
-def render_html(html):
-
-    st.markdown(textwrap.dedent(html).strip(), unsafe_allow_html=True)
 
 TIMES = build_times()
 
@@ -268,33 +262,25 @@ def get_day_load_label(task_hours):
 
     return "Overloaded"
 
-def get_day_load_class(task_hours):
+def item_bg_color(item):
 
-    if task_hours < 2:
+    if item["type"] == "sleep":
 
-        return "load-light"
+        return "#EEF2FB"
 
-    elif task_hours < 4:
+    if item["type"] == "commitment":
 
-        return "load-balanced"
+        return "#F3F3F3"
 
-    elif task_hours < 6:
+    if item["priority"] == "High":
 
-        return "load-heavy"
+        return "#FDECEC"
 
-    return "load-overloaded"
+    if item["priority"] == "Medium":
 
-def get_task_css_class(priority):
+        return "#FFF5E6"
 
-    if priority == "High":
-
-        return "schedule-task-high"
-
-    elif priority == "Medium":
-
-        return "schedule-task-medium"
-
-    return "schedule-task-low"
+    return "#EEF7ED"
 
 def build_timeline_html(schedule):
 
@@ -348,13 +334,21 @@ def build_timeline_html(schedule):
 
         return ("", "t-cell-empty")
 
-    html = "<div class='timeline-wrap'><table class='timeline-table'>"
+    html = """
 
-    html += "<tr><th class='timeline-time'>Time</th>"
+    <div class="timeline-wrap">
+
+      <table class="timeline-table">
+
+        <tr>
+
+          <th class="timeline-time">Time</th>
+
+    """
 
     for d in DAYS:
 
-        html += f"<th class='timeline-day-header'>{d}</th>"
+        html += f'<th class="timeline-day-header">{d}</th>'
 
     html += "</tr>"
 
@@ -362,13 +356,13 @@ def build_timeline_html(schedule):
 
         html += "<tr>"
 
-        html += f"<td class='timeline-time'>{float_to_time(slot)}</td>"
+        html += f'<td class="timeline-time">{float_to_time(slot)}</td>'
 
         for d in DAYS:
 
             text, cell_class = get_cell_content(d, slot)
 
-            html += f"<td class='{cell_class}'>{text}</td>"
+            html += f'<td class="{cell_class}">{text}</td>'
 
         html += "</tr>"
 
@@ -420,7 +414,7 @@ if "generation_complete" not in st.session_state:
 
 # ----------------------------------------------------
 
-render_html("""
+st.markdown("""
 
 <style>
 
@@ -484,52 +478,6 @@ html, body, [class*="css"] {
 
 }
 
-.task-display-card {
-
-    background-color: #EAF4EE;
-
-    border: 1px solid #D4E6DA;
-
-    border-radius: 16px;
-
-    padding: 14px 16px;
-
-    margin-bottom: 12px;
-
-}
-
-.summary-box {
-
-    background-color: #F8FBF9;
-
-    border: 1px solid #DDEAE1;
-
-    border-radius: 16px;
-
-    padding: 16px;
-
-    text-align: center;
-
-}
-
-.summary-label {
-
-    font-size: 14px;
-
-    color: #6B8174;
-
-}
-
-.summary-value {
-
-    font-size: 28px;
-
-    font-weight: 700;
-
-    color: #2F5E46;
-
-}
-
 .legend-inline {
 
     display: flex;
@@ -551,6 +499,8 @@ html, body, [class*="css"] {
     font-size: 12px;
 
     font-weight: 700;
+
+    display: inline-block;
 
 }
 
@@ -589,28 +539,6 @@ html, body, [class*="css"] {
 .load-heavy { background: #FFE8CC; color: #8A4A00; }
 
 .load-overloaded { background: #FDECEC; color: #9B2C2C; }
-
-.schedule-card {
-
-    border-radius: 14px;
-
-    padding: 12px 14px;
-
-    margin-bottom: 10px;
-
-    border: 1px solid transparent;
-
-}
-
-.schedule-task-high { background: #FDECEC; border-color: #F4C7C7; }
-
-.schedule-task-medium { background: #FFF5E6; border-color: #F3D7A6; }
-
-.schedule-task-low { background: #EEF7ED; border-color: #CFE6CC; }
-
-.schedule-sleep { background: #EEF2FB; border-color: #CCD8F0; }
-
-.schedule-commitment { background: #F3F3F3; border-color: #DDDDDD; }
 
 .timeline-wrap {
 
@@ -694,7 +622,7 @@ html, body, [class*="css"] {
 
 </style>
 
-""")
+""", unsafe_allow_html=True)
 
 # ----------------------------------------------------
 
@@ -704,15 +632,17 @@ html, body, [class*="css"] {
 
 if st.session_state.page == "home":
 
-    render_html("""
+    st.markdown("<div class='home-title'>🌿 Welcome</div>", unsafe_allow_html=True)
 
-<div class="home-title">🌿 Welcome</div>
+    st.markdown("<div class='home-subtitle'>Build a week that feels balanced.</div>", unsafe_allow_html=True)
 
-<div class="home-subtitle">Build a week that feels balanced.</div>
+    st.markdown(
 
-<div class="home-text">Plan around your real life, protect your rest, and place what matters — gently.</div>
+        "<div class='home-text'>Plan around your real life, protect your rest, and place what matters — gently.</div>",
 
-""")
+        unsafe_allow_html=True
+
+    )
 
     c1, c2, c3 = st.columns([1, 1.4, 1])
 
@@ -832,27 +762,13 @@ if st.session_state.page == "planning":
 
             with c1:
 
-                render_html(f"""
+                with st.container(border=True):
 
-<div class="task-display-card">
+                    st.markdown(f"**{task['name']}**")
 
-    <div><strong>{task['name']}</strong></div>
+                    st.caption(f"{task['hours']:.1f} hrs • {task['priority']} priority")
 
-    <div style="color:#5B7466; margin-top:4px;">
-
-        {task['hours']:.1f} hrs • {task['priority']} priority
-
-    </div>
-
-    <div style="color:#5B7466; margin-top:2px;">
-
-        Due: {format_date(task['due_date'])}
-
-    </div>
-
-</div>
-
-""")
+                    st.caption(f"Due: {format_date(task['due_date'])}")
 
             with c2:
 
@@ -1202,95 +1118,45 @@ if st.session_state.page == "planning":
 
         with s1:
 
-            render_html(f"""
-
-<div class="summary-box">
-
-    <div class="summary-label">Task Hours</div>
-
-    <div class="summary-value">{total_task_hours:.1f}</div>
-
-</div>
-
-""")
+            st.metric("Task Hours", f"{total_task_hours:.1f}")
 
         with s2:
 
-            render_html(f"""
-
-<div class="summary-box">
-
-    <div class="summary-label">Scheduled</div>
-
-    <div class="summary-value">{total_scheduled_task_hours:.1f}</div>
-
-</div>
-
-""")
+            st.metric("Scheduled", f"{total_scheduled_task_hours:.1f}")
 
         with s3:
 
-            render_html(f"""
-
-<div class="summary-box">
-
-    <div class="summary-label">Unscheduled</div>
-
-    <div class="summary-value">{total_unscheduled_hours:.1f}</div>
-
-</div>
-
-""")
+            st.metric("Unscheduled", f"{total_unscheduled_hours:.1f}")
 
         with s4:
 
-            render_html(f"""
-
-<div class="summary-box">
-
-    <div class="summary-label">Sleep Hours</div>
-
-    <div class="summary-value">{total_sleep_hours:.1f}</div>
-
-</div>
-
-""")
+            st.metric("Sleep Hours", f"{total_sleep_hours:.1f}")
 
         with s5:
 
-            render_html(f"""
-
-<div class="summary-box">
-
-    <div class="summary-label">Fixed Hours</div>
-
-    <div class="summary-value">{total_commitment_hours:.1f}</div>
-
-</div>
-
-""")
+            st.metric("Fixed Hours", f"{total_commitment_hours:.1f}")
 
         st.header("🌿 Your Weekly Layout")
 
         st.caption("Your schedule is generated around your rest window, existing commitments, task priorities, and due dates.")
 
-        render_html("""
+        st.markdown("""
 
 <div class="legend-inline">
 
-    <div class="legend-pill legend-high">High Priority Task</div>
+    <span class="legend-pill legend-high">High Priority Task</span>
 
-    <div class="legend-pill legend-medium">Medium Priority Task</div>
+    <span class="legend-pill legend-medium">Medium Priority Task</span>
 
-    <div class="legend-pill legend-low">Low Priority Task</div>
+    <span class="legend-pill legend-low">Low Priority Task</span>
 
-    <div class="legend-pill legend-sleep">Sleep</div>
+    <span class="legend-pill legend-sleep">Sleep</span>
 
-    <div class="legend-pill legend-commitment">Fixed Commitment</div>
+    <span class="legend-pill legend-commitment">Fixed Commitment</span>
 
 </div>
 
-""")
+""", unsafe_allow_html=True)
 
         for d in DAYS:
 
@@ -1306,51 +1172,49 @@ if st.session_state.page == "planning":
 
             load_label = get_day_load_label(day_task_hours)
 
-            load_class = get_day_load_class(day_task_hours)
+            if load_label == "Light":
 
-            st.markdown(f"### {d}")
+                st.success(f"{d} • {format_date(current_date)} • {load_label}")
 
-            st.caption(format_date(current_date))
+            elif load_label == "Balanced":
 
-            render_html(f"""
+                st.warning(f"{d} • {format_date(current_date)} • {load_label}")
 
-<div class="load-pill {load_class}">{load_label}</div>
+            elif load_label == "Heavy":
 
-""")
+                st.warning(f"{d} • {format_date(current_date)} • {load_label}")
+
+            else:
+
+                st.error(f"{d} • {format_date(current_date)} • {load_label}")
 
             if st.session_state.schedule[d]:
 
                 for item in st.session_state.schedule[d]:
 
-                    if item["type"] == "sleep":
+                    bg = item_bg_color(item)
 
-                        css_class = "schedule-sleep"
+                    if item["type"] == "sleep":
 
                         note = "Sleep window"
 
-                        title = item["label"]
-
                     elif item["type"] == "commitment":
-
-                        css_class = "schedule-commitment"
 
                         note = "Fixed commitment"
 
-                        title = item["label"]
-
                     else:
-
-                        css_class = get_task_css_class(item["priority"])
 
                         note = f"Task • {item['priority']} priority • Due {format_date(item['due_date'])}"
 
-                        title = item["label"]
+                    with st.container(border=True):
 
-                    render_html(f"""
+                        st.markdown(
 
-<div class="schedule-card {css_class}">
+                            f"""
 
-    <div><strong>{title}</strong></div>
+<div style="background:{bg}; padding:12px; border-radius:12px;">
+
+    <div><strong>{item['label']}</strong></div>
 
     <div style="margin-top:4px; color:#5F7567;">{float_to_time(item['start'])} → {float_to_time(item['end'])}</div>
 
@@ -1358,7 +1222,11 @@ if st.session_state.page == "planning":
 
 </div>
 
-""")
+                            """,
+
+                            unsafe_allow_html=True
+
+                        )
 
             else:
 
@@ -1368,7 +1236,7 @@ if st.session_state.page == "planning":
 
             st.caption("A half-hour view of your week. Best viewed on a wider screen.")
 
-            render_html(build_timeline_html(st.session_state.schedule))
+            st.markdown(build_timeline_html(st.session_state.schedule), unsafe_allow_html=True)
 
         if st.session_state.unscheduled:
 
