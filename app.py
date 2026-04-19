@@ -1,5 +1,7 @@
 import streamlit as st
 
+import textwrap
+
 from datetime import datetime, date, timedelta
 
 st.set_page_config(
@@ -107,6 +109,10 @@ def get_sleep_duration(start_f, end_f):
         return (24 - start_f) + end_f
 
     return end_f - start_f
+
+def render_html(html):
+
+    st.markdown(textwrap.dedent(html).strip(), unsafe_allow_html=True)
 
 TIMES = build_times()
 
@@ -262,6 +268,34 @@ def get_day_load_label(task_hours):
 
     return "Overloaded"
 
+def get_day_load_class(task_hours):
+
+    if task_hours < 2:
+
+        return "load-light"
+
+    elif task_hours < 4:
+
+        return "load-balanced"
+
+    elif task_hours < 6:
+
+        return "load-heavy"
+
+    return "load-overloaded"
+
+def get_task_css_class(priority):
+
+    if priority == "High":
+
+        return "schedule-task-high"
+
+    elif priority == "Medium":
+
+        return "schedule-task-medium"
+
+    return "schedule-task-low"
+
 def build_timeline_html(schedule):
 
     slot_times = []
@@ -386,7 +420,7 @@ if "generation_complete" not in st.session_state:
 
 # ----------------------------------------------------
 
-st.markdown("""
+render_html("""
 
 <style>
 
@@ -450,217 +484,203 @@ html, body, [class*="css"] {
 
 }
 
-.soft-box {
+.task-display-card {
 
-    background-color:#F8FBF9;
+    background-color: #EAF4EE;
 
-    border:1px solid #DDEAE1;
+    border: 1px solid #D4E6DA;
 
-    border-radius:16px;
+    border-radius: 16px;
 
-    padding:16px;
+    padding: 14px 16px;
 
-    margin-bottom:16px;
+    margin-bottom: 12px;
 
 }
 
 .summary-box {
 
-    background-color:#F8FBF9;
+    background-color: #F8FBF9;
 
-    border:1px solid #DDEAE1;
+    border: 1px solid #DDEAE1;
 
-    border-radius:16px;
+    border-radius: 16px;
 
-    padding:16px;
+    padding: 16px;
 
-    text-align:center;
+    text-align: center;
 
 }
 
 .summary-label {
 
-    font-size:14px;
+    font-size: 14px;
 
-    color:#6B8174;
+    color: #6B8174;
 
 }
 
 .summary-value {
 
-    font-size:28px;
+    font-size: 28px;
 
-    font-weight:700;
+    font-weight: 700;
 
-    color:#2F5E46;
-
-}
-
-.task-display-card {
-
-    background-color:#EAF4EE;
-
-    border:1px solid #D4E6DA;
-
-    border-radius:16px;
-
-    padding:14px 16px;
-
-    margin-bottom:12px;
+    color: #2F5E46;
 
 }
 
 .legend-inline {
 
-    display:flex;
+    display: flex;
 
-    flex-wrap:wrap;
+    flex-wrap: wrap;
 
-    gap:8px;
+    gap: 8px;
 
-    margin-bottom:12px;
+    margin-bottom: 12px;
 
 }
 
 .legend-pill {
 
-    padding:6px 10px;
+    padding: 6px 10px;
 
-    border-radius:999px;
+    border-radius: 999px;
 
-    font-size:12px;
+    font-size: 12px;
 
-    font-weight:700;
+    font-weight: 700;
 
 }
 
-.legend-high { background:#FDECEC; border:1px solid #F4C7C7; }
+.legend-high { background: #FDECEC; border: 1px solid #F4C7C7; }
 
-.legend-medium { background:#FFF5E6; border:1px solid #F3D7A6; }
+.legend-medium { background: #FFF5E6; border: 1px solid #F3D7A6; }
 
-.legend-low { background:#EEF7ED; border:1px solid #CFE6CC; }
+.legend-low { background: #EEF7ED; border: 1px solid #CFE6CC; }
 
-.legend-sleep { background:#EEF2FB; border:1px solid #CCD8F0; }
+.legend-sleep { background: #EEF2FB; border: 1px solid #CCD8F0; }
 
-.legend-commitment { background:#F3F3F3; border:1px solid #DDDDDD; }
+.legend-commitment { background: #F3F3F3; border: 1px solid #DDDDDD; }
 
 .load-pill {
 
-    display:inline-block;
+    display: inline-block;
 
-    padding:6px 12px;
+    padding: 6px 12px;
 
-    border-radius:999px;
+    border-radius: 999px;
 
-    font-size:12px;
+    font-size: 12px;
 
-    font-weight:700;
+    font-weight: 700;
 
-    margin-top:6px;
+    margin-top: 6px;
 
-    margin-bottom:10px;
+    margin-bottom: 10px;
 
 }
 
-.load-light { background:#EEF7ED; color:#2F5E46; }
+.load-light { background: #EEF7ED; color: #2F5E46; }
 
-.load-balanced { background:#FFF5E6; color:#7A5A1D; }
+.load-balanced { background: #FFF5E6; color: #7A5A1D; }
 
-.load-heavy { background:#FFE8CC; color:#8A4A00; }
+.load-heavy { background: #FFE8CC; color: #8A4A00; }
 
-.load-overloaded { background:#FDECEC; color:#9B2C2C; }
+.load-overloaded { background: #FDECEC; color: #9B2C2C; }
 
 .schedule-card {
 
-    border-radius:14px;
+    border-radius: 14px;
 
-    padding:12px 14px;
+    padding: 12px 14px;
 
-    margin-bottom:10px;
+    margin-bottom: 10px;
 
-    border:1px solid transparent;
+    border: 1px solid transparent;
 
 }
 
-.schedule-task-high { background:#FDECEC; border-color:#F4C7C7; }
+.schedule-task-high { background: #FDECEC; border-color: #F4C7C7; }
 
-.schedule-task-medium { background:#FFF5E6; border-color:#F3D7A6; }
+.schedule-task-medium { background: #FFF5E6; border-color: #F3D7A6; }
 
-.schedule-task-low { background:#EEF7ED; border-color:#CFE6CC; }
+.schedule-task-low { background: #EEF7ED; border-color: #CFE6CC; }
 
-.schedule-sleep { background:#EEF2FB; border-color:#CCD8F0; }
+.schedule-sleep { background: #EEF2FB; border-color: #CCD8F0; }
 
-.schedule-commitment { background:#F3F3F3; border-color:#DDDDDD; }
+.schedule-commitment { background: #F3F3F3; border-color: #DDDDDD; }
 
 .timeline-wrap {
 
-    overflow-x:auto;
+    overflow-x: auto;
 
-    width:100%;
+    width: 100%;
 
 }
 
 .timeline-table {
 
-    border-collapse:collapse;
+    border-collapse: collapse;
 
-    min-width:980px;
+    min-width: 980px;
 
-    width:100%;
+    width: 100%;
 
-    table-layout:fixed;
+    table-layout: fixed;
 
-    font-size:12px;
+    font-size: 12px;
 
 }
 
 .timeline-table th, .timeline-table td {
 
-    border:1px solid #DDEAE1;
+    border: 1px solid #DDEAE1;
 
-    text-align:center;
+    text-align: center;
 
-    vertical-align:middle;
+    vertical-align: middle;
 
-    padding:6px;
+    padding: 6px;
 
 }
 
 .timeline-time {
 
-    width:80px;
+    width: 80px;
 
-    background:#F8FBF9;
+    background: #F8FBF9;
 
-    font-weight:600;
+    font-weight: 600;
 
-    color:#5F7567;
+    color: #5F7567;
 
 }
 
 .timeline-day-header {
 
-    background:#F3F7F4;
+    background: #F3F7F4;
 
-    color:#2F5E46;
+    color: #2F5E46;
 
-    font-weight:700;
+    font-weight: 700;
 
-    min-width:120px;
+    min-width: 120px;
 
 }
 
-.t-cell-empty { background:#FFFFFF; }
+.t-cell-empty { background: #FFFFFF; }
 
-.t-cell-sleep { background:#EEF2FB; color:#35507A; font-weight:600; }
+.t-cell-sleep { background: #EEF2FB; color: #35507A; font-weight: 600; }
 
-.t-cell-commitment { background:#F3F3F3; color:#555555; font-weight:600; }
+.t-cell-commitment { background: #F3F3F3; color: #555555; font-weight: 600; }
 
-.t-cell-high { background:#FDECEC; color:#842029; font-weight:700; }
+.t-cell-high { background: #FDECEC; color: #842029; font-weight: 700; }
 
-.t-cell-medium { background:#FFF5E6; color:#7A5A1D; font-weight:700; }
+.t-cell-medium { background: #FFF5E6; color: #7A5A1D; font-weight: 700; }
 
-.t-cell-low { background:#EEF7ED; color:#2F5E46; font-weight:700; }
+.t-cell-low { background: #EEF7ED; color: #2F5E46; font-weight: 700; }
 
 @media (max-width: 900px) {
 
@@ -674,7 +694,7 @@ html, body, [class*="css"] {
 
 </style>
 
-""", unsafe_allow_html=True)
+""")
 
 # ----------------------------------------------------
 
@@ -684,17 +704,15 @@ html, body, [class*="css"] {
 
 if st.session_state.page == "home":
 
-    st.markdown("<div class='home-title'>🌿 Welcome</div>", unsafe_allow_html=True)
+    render_html("""
 
-    st.markdown("<div class='home-subtitle'>Build a week that feels balanced.</div>", unsafe_allow_html=True)
+<div class="home-title">🌿 Welcome</div>
 
-    st.markdown(
+<div class="home-subtitle">Build a week that feels balanced.</div>
 
-        "<div class='home-text'>Plan around your real life, protect your rest, and place what matters — gently.</div>",
+<div class="home-text">Plan around your real life, protect your rest, and place what matters — gently.</div>
 
-        unsafe_allow_html=True
-
-    )
+""")
 
     c1, c2, c3 = st.columns([1, 1.4, 1])
 
@@ -747,8 +765,6 @@ if st.session_state.page == "planning":
     )
 
     week_dates = {DAYS[i]: st.session_state.week_start + timedelta(days=i) for i in range(7)}
-
-    # Mobile friendly: stacked sections instead of two side-by-side columns
 
     st.markdown("---")
 
@@ -804,25 +820,19 @@ if st.session_state.page == "planning":
 
         sorted_display_tasks = sorted(
 
-            st.session_state.tasks,
+            enumerate(st.session_state.tasks),
 
-            key=lambda x: (x["due_date"], -PRIORITY_WEIGHT[x["priority"]], x["name"].lower())
+            key=lambda x: (x[1]["due_date"], -PRIORITY_WEIGHT[x[1]["priority"]], x[1]["name"].lower())
 
         )
 
-        for i, task in enumerate(sorted_display_tasks):
-
-            original_index = st.session_state.tasks.index(task)
+        for original_index, task in sorted_display_tasks:
 
             c1, c2 = st.columns([6, 1])
 
             with c1:
 
-                with st.container():
-
-                    st.markdown(
-
-                        f"""
+                render_html(f"""
 
 <div class="task-display-card">
 
@@ -842,11 +852,7 @@ if st.session_state.page == "planning":
 
 </div>
 
-                        """,
-
-                        unsafe_allow_html=True
-
-                    )
+""")
 
             with c2:
 
@@ -1054,6 +1060,8 @@ if st.session_state.page == "planning":
 
         )
 
+        # Schedule only on or before due date
+
         for task in remaining_tasks:
 
             due_index = (task["due_date"] - st.session_state.week_start).days
@@ -1194,29 +1202,79 @@ if st.session_state.page == "planning":
 
         with s1:
 
-            st.markdown(f"<div class='summary-box'><div class='summary-label'>Task Hours</div><div class='summary-value'>{total_task_hours:.1f}</div></div>", unsafe_allow_html=True)
+            render_html(f"""
+
+<div class="summary-box">
+
+    <div class="summary-label">Task Hours</div>
+
+    <div class="summary-value">{total_task_hours:.1f}</div>
+
+</div>
+
+""")
 
         with s2:
 
-            st.markdown(f"<div class='summary-box'><div class='summary-label'>Scheduled</div><div class='summary-value'>{total_scheduled_task_hours:.1f}</div></div>", unsafe_allow_html=True)
+            render_html(f"""
+
+<div class="summary-box">
+
+    <div class="summary-label">Scheduled</div>
+
+    <div class="summary-value">{total_scheduled_task_hours:.1f}</div>
+
+</div>
+
+""")
 
         with s3:
 
-            st.markdown(f"<div class='summary-box'><div class='summary-label'>Unscheduled</div><div class='summary-value'>{total_unscheduled_hours:.1f}</div></div>", unsafe_allow_html=True)
+            render_html(f"""
+
+<div class="summary-box">
+
+    <div class="summary-label">Unscheduled</div>
+
+    <div class="summary-value">{total_unscheduled_hours:.1f}</div>
+
+</div>
+
+""")
 
         with s4:
 
-            st.markdown(f"<div class='summary-box'><div class='summary-label'>Sleep Hours</div><div class='summary-value'>{total_sleep_hours:.1f}</div></div>", unsafe_allow_html=True)
+            render_html(f"""
+
+<div class="summary-box">
+
+    <div class="summary-label">Sleep Hours</div>
+
+    <div class="summary-value">{total_sleep_hours:.1f}</div>
+
+</div>
+
+""")
 
         with s5:
 
-            st.markdown(f"<div class='summary-box'><div class='summary-label'>Fixed Hours</div><div class='summary-value'>{total_commitment_hours:.1f}</div></div>", unsafe_allow_html=True)
+            render_html(f"""
+
+<div class="summary-box">
+
+    <div class="summary-label">Fixed Hours</div>
+
+    <div class="summary-value">{total_commitment_hours:.1f}</div>
+
+</div>
+
+""")
 
         st.header("🌿 Your Weekly Layout")
 
         st.caption("Your schedule is generated around your rest window, existing commitments, task priorities, and due dates.")
 
-        st.markdown("""
+        render_html("""
 
 <div class="legend-inline">
 
@@ -1232,7 +1290,7 @@ if st.session_state.page == "planning":
 
 </div>
 
-        """, unsafe_allow_html=True)
+""")
 
         for d in DAYS:
 
@@ -1248,71 +1306,47 @@ if st.session_state.page == "planning":
 
             load_label = get_day_load_label(day_task_hours)
 
-            if load_label == "Light":
+            load_class = get_day_load_class(day_task_hours)
 
-                load_class = "load-light"
+            st.markdown(f"### {d}")
 
-            elif load_label == "Balanced":
+            st.caption(format_date(current_date))
 
-                load_class = "load-balanced"
+            render_html(f"""
 
-            elif load_label == "Heavy":
+<div class="load-pill {load_class}">{load_label}</div>
 
-                load_class = "load-heavy"
+""")
 
-            else:
+            if st.session_state.schedule[d]:
 
-                load_class = "load-overloaded"
+                for item in st.session_state.schedule[d]:
 
-            with st.container():
+                    if item["type"] == "sleep":
 
-                st.markdown(f"### {d}")
+                        css_class = "schedule-sleep"
 
-                st.caption(format_date(current_date))
+                        note = "Sleep window"
 
-                st.markdown(f"<div class='load-pill {load_class}'>{load_label}</div>", unsafe_allow_html=True)
+                        title = item["label"]
 
-                if st.session_state.schedule[d]:
+                    elif item["type"] == "commitment":
 
-                    for item in st.session_state.schedule[d]:
+                        css_class = "schedule-commitment"
 
-                        if item["type"] == "sleep":
+                        note = "Fixed commitment"
 
-                            css_class = "schedule-sleep"
+                        title = item["label"]
 
-                            note = "Sleep window"
+                    else:
 
-                            title = item["label"]
+                        css_class = get_task_css_class(item["priority"])
 
-                        elif item["type"] == "commitment":
+                        note = f"Task • {item['priority']} priority • Due {format_date(item['due_date'])}"
 
-                            css_class = "schedule-commitment"
+                        title = item["label"]
 
-                            note = "Fixed commitment"
-
-                            title = item["label"]
-
-                        else:
-
-                            if item["priority"] == "High":
-
-                                css_class = "schedule-task-high"
-
-                            elif item["priority"] == "Medium":
-
-                                css_class = "schedule-task-medium"
-
-                            else:
-
-                                css_class = "schedule-task-low"
-
-                            note = f"Task • {item['priority']} priority • Due {format_date(item['due_date'])}"
-
-                            title = item["label"]
-
-                        st.markdown(
-
-                            f"""
+                    render_html(f"""
 
 <div class="schedule-card {css_class}">
 
@@ -1324,21 +1358,17 @@ if st.session_state.page == "planning":
 
 </div>
 
-                            """,
+""")
 
-                            unsafe_allow_html=True
+            else:
 
-                        )
-
-                else:
-
-                    st.info("No scheduled items for this day.")
+                st.info("No scheduled items for this day.")
 
         with st.expander("🌿 Visual Timeline", expanded=False):
 
             st.caption("A half-hour view of your week. Best viewed on a wider screen.")
 
-            st.markdown(build_timeline_html(st.session_state.schedule), unsafe_allow_html=True)
+            render_html(build_timeline_html(st.session_state.schedule))
 
         if st.session_state.unscheduled:
 
