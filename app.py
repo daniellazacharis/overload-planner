@@ -1,5 +1,7 @@
 import streamlit as st
 
+import pandas as pd
+
 from datetime import datetime, date, timedelta
 
 st.set_page_config(
@@ -102,7 +104,7 @@ def get_sleep_duration(start_f, end_f):
 
         return 0
 
-    if start_f > sleep_end_f:
+    if start_f > end_f:
 
         return (24 - start_f) + end_f
 
@@ -262,27 +264,45 @@ def get_day_load_label(task_hours):
 
     return "Overloaded"
 
-def item_bg_color(item):
+def get_item_icon_and_style(item):
 
     if item["type"] == "sleep":
 
-        return "#EEF2FB"
+        return "🟦", "info"
 
     if item["type"] == "commitment":
 
-        return "#F3F3F3"
+        return "⬜", "secondary"
 
     if item["priority"] == "High":
 
-        return "#FDECEC"
+        return "🟥", "error"
 
     if item["priority"] == "Medium":
 
-        return "#FFF5E6"
+        return "🟨", "warning"
 
-    return "#EEF7ED"
+    return "🟩", "success"
 
-def build_timeline_html(schedule):
+def get_load_display(task_hours):
+
+    label = get_day_load_label(task_hours)
+
+    if label == "Light":
+
+        return "🟢 Light"
+
+    if label == "Balanced":
+
+        return "🟡 Balanced"
+
+    if label == "Heavy":
+
+        return "🟠 Heavy"
+
+    return "🔴 Overloaded"
+
+def build_timeline_dataframe(schedule):
 
     slot_times = []
 
@@ -294,81 +314,41 @@ def build_timeline_html(schedule):
 
         current += 0.5
 
-    def get_cell_content(day_name, slot_start):
-
-        slot_end = slot_start + 0.5
-
-        for item in schedule[day_name]:
-
-            item_start = item["start"]
-
-            item_end = item["end"]
-
-            if item_start < slot_end and item_end > slot_start:
-
-                if item["type"] == "sleep":
-
-                    return ("Sleep", "t-cell-sleep")
-
-                elif item["type"] == "commitment":
-
-                    short_label = item["label"][:10] + "…" if len(item["label"]) > 10 else item["label"]
-
-                    return (short_label, "t-cell-commitment")
-
-                else:
-
-                    short_label = item["label"][:10] + "…" if len(item["label"]) > 10 else item["label"]
-
-                    if item["priority"] == "High":
-
-                        return (short_label, "t-cell-high")
-
-                    elif item["priority"] == "Medium":
-
-                        return (short_label, "t-cell-medium")
-
-                    else:
-
-                        return (short_label, "t-cell-low")
-
-        return ("", "t-cell-empty")
-
-    html = """
-
-    <div class="timeline-wrap">
-
-      <table class="timeline-table">
-
-        <tr>
-
-          <th class="timeline-time">Time</th>
-
-    """
-
-    for d in DAYS:
-
-        html += f'<th class="timeline-day-header">{d}</th>'
-
-    html += "</tr>"
+    rows = []
 
     for slot in slot_times:
 
-        html += "<tr>"
+        row = {"Time": float_to_time(slot)}
 
-        html += f'<td class="timeline-time">{float_to_time(slot)}</td>'
+        slot_end = slot + 0.5
 
         for d in DAYS:
 
-            text, cell_class = get_cell_content(d, slot)
+            value = ""
 
-            html += f'<td class="{cell_class}">{text}</td>'
+            for item in schedule[d]:
 
-        html += "</tr>"
+                if item["start"] < slot_end and item["end"] > slot:
 
-    html += "</table></div>"
+                    if item["type"] == "sleep":
 
-    return html
+                        value = "Sleep"
+
+                    elif item["type"] == "commitment":
+
+                        value = item["label"]
+
+                    else:
+
+                        value = item["label"]
+
+                    break
+
+            row[d] = value
+
+        rows.append(row)
+
+    return pd.DataFrame(rows)
 
 # ----------------------------------------------------
 
@@ -478,137 +458,15 @@ html, body, [class*="css"] {
 
 }
 
-.legend-inline {
+.legend-line {
 
-    display: flex;
+    font-size: 14px;
 
-    flex-wrap: wrap;
+    line-height: 1.8;
 
-    gap: 8px;
-
-    margin-bottom: 12px;
+    color: #4F695C;
 
 }
-
-.legend-pill {
-
-    padding: 6px 10px;
-
-    border-radius: 999px;
-
-    font-size: 12px;
-
-    font-weight: 700;
-
-    display: inline-block;
-
-}
-
-.legend-high { background: #FDECEC; border: 1px solid #F4C7C7; }
-
-.legend-medium { background: #FFF5E6; border: 1px solid #F3D7A6; }
-
-.legend-low { background: #EEF7ED; border: 1px solid #CFE6CC; }
-
-.legend-sleep { background: #EEF2FB; border: 1px solid #CCD8F0; }
-
-.legend-commitment { background: #F3F3F3; border: 1px solid #DDDDDD; }
-
-.load-pill {
-
-    display: inline-block;
-
-    padding: 6px 12px;
-
-    border-radius: 999px;
-
-    font-size: 12px;
-
-    font-weight: 700;
-
-    margin-top: 6px;
-
-    margin-bottom: 10px;
-
-}
-
-.load-light { background: #EEF7ED; color: #2F5E46; }
-
-.load-balanced { background: #FFF5E6; color: #7A5A1D; }
-
-.load-heavy { background: #FFE8CC; color: #8A4A00; }
-
-.load-overloaded { background: #FDECEC; color: #9B2C2C; }
-
-.timeline-wrap {
-
-    overflow-x: auto;
-
-    width: 100%;
-
-}
-
-.timeline-table {
-
-    border-collapse: collapse;
-
-    min-width: 980px;
-
-    width: 100%;
-
-    table-layout: fixed;
-
-    font-size: 12px;
-
-}
-
-.timeline-table th, .timeline-table td {
-
-    border: 1px solid #DDEAE1;
-
-    text-align: center;
-
-    vertical-align: middle;
-
-    padding: 6px;
-
-}
-
-.timeline-time {
-
-    width: 80px;
-
-    background: #F8FBF9;
-
-    font-weight: 600;
-
-    color: #5F7567;
-
-}
-
-.timeline-day-header {
-
-    background: #F3F7F4;
-
-    color: #2F5E46;
-
-    font-weight: 700;
-
-    min-width: 120px;
-
-}
-
-.t-cell-empty { background: #FFFFFF; }
-
-.t-cell-sleep { background: #EEF2FB; color: #35507A; font-weight: 600; }
-
-.t-cell-commitment { background: #F3F3F3; color: #555555; font-weight: 600; }
-
-.t-cell-high { background: #FDECEC; color: #842029; font-weight: 700; }
-
-.t-cell-medium { background: #FFF5E6; color: #7A5A1D; font-weight: 700; }
-
-.t-cell-low { background: #EEF7ED; color: #2F5E46; font-weight: 700; }
 
 @media (max-width: 900px) {
 
@@ -1140,23 +998,21 @@ if st.session_state.page == "planning":
 
         st.caption("Your schedule is generated around your rest window, existing commitments, task priorities, and due dates.")
 
-        st.markdown("""
+        st.markdown(
 
-<div class="legend-inline">
+            """
 
-    <span class="legend-pill legend-high">High Priority Task</span>
+<div class="legend-line">
 
-    <span class="legend-pill legend-medium">Medium Priority Task</span>
-
-    <span class="legend-pill legend-low">Low Priority Task</span>
-
-    <span class="legend-pill legend-sleep">Sleep</span>
-
-    <span class="legend-pill legend-commitment">Fixed Commitment</span>
+🟥 High Priority Task &nbsp;&nbsp; 🟨 Medium Priority Task &nbsp;&nbsp; 🟩 Low Priority Task &nbsp;&nbsp; 🟦 Sleep &nbsp;&nbsp; ⬜ Fixed Commitment
 
 </div>
 
-""", unsafe_allow_html=True)
+            """,
+
+            unsafe_allow_html=True
+
+        )
 
         for d in DAYS:
 
@@ -1170,63 +1026,43 @@ if st.session_state.page == "planning":
 
                     day_task_hours += item["end"] - item["start"]
 
-            load_label = get_day_load_label(day_task_hours)
+            st.subheader(d)
 
-            if load_label == "Light":
+            st.caption(format_date(current_date))
 
-                st.success(f"{d} • {format_date(current_date)} • {load_label}")
-
-            elif load_label == "Balanced":
-
-                st.warning(f"{d} • {format_date(current_date)} • {load_label}")
-
-            elif load_label == "Heavy":
-
-                st.warning(f"{d} • {format_date(current_date)} • {load_label}")
-
-            else:
-
-                st.error(f"{d} • {format_date(current_date)} • {load_label}")
+            st.write(get_load_display(day_task_hours))
 
             if st.session_state.schedule[d]:
 
                 for item in st.session_state.schedule[d]:
 
-                    bg = item_bg_color(item)
+                    icon, style_type = get_item_icon_and_style(item)
 
                     if item["type"] == "sleep":
+
+                        label = f"{icon} **{item['label']}**"
 
                         note = "Sleep window"
 
                     elif item["type"] == "commitment":
 
+                        label = f"{icon} **{item['label']}**"
+
                         note = "Fixed commitment"
 
                     else:
+
+                        label = f"{icon} **{item['label']}**"
 
                         note = f"Task • {item['priority']} priority • Due {format_date(item['due_date'])}"
 
                     with st.container(border=True):
 
-                        st.markdown(
+                        st.markdown(label)
 
-                            f"""
+                        st.caption(f"{float_to_time(item['start'])} → {float_to_time(item['end'])}")
 
-<div style="background:{bg}; padding:12px; border-radius:12px;">
-
-    <div><strong>{item['label']}</strong></div>
-
-    <div style="margin-top:4px; color:#5F7567;">{float_to_time(item['start'])} → {float_to_time(item['end'])}</div>
-
-    <div style="margin-top:4px; font-size:13px; color:#6E8577;">{note}</div>
-
-</div>
-
-                            """,
-
-                            unsafe_allow_html=True
-
-                        )
+                        st.caption(note)
 
             else:
 
@@ -1236,7 +1072,9 @@ if st.session_state.page == "planning":
 
             st.caption("A half-hour view of your week. Best viewed on a wider screen.")
 
-            st.markdown(build_timeline_html(st.session_state.schedule), unsafe_allow_html=True)
+            timeline_df = build_timeline_dataframe(st.session_state.schedule)
+
+            st.dataframe(timeline_df, use_container_width=True, hide_index=True)
 
         if st.session_state.unscheduled:
 
