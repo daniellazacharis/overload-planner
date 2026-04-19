@@ -908,46 +908,6 @@ html, body, [class*="css"] {
 
 }
 
-.weekly-card {
-
-    padding: 14px;
-
-    border-radius: 12px;
-
-    margin-bottom: 12px;
-
-}
-
-.card-title {
-
-    font-weight: 700;
-
-    color: #2F5E46;
-
-    font-size: 16px;
-
-}
-
-.card-time {
-
-    margin-top: 4px;
-
-    color: #6E8577;
-
-    font-size: 14px;
-
-}
-
-.card-note {
-
-    margin-top: 6px;
-
-    color: #6E8577;
-
-    font-size: 13px;
-
-}
-
 @media (max-width: 900px) {
 
     .home-title { font-size: 2.4rem; }
@@ -1476,23 +1436,61 @@ if st.session_state.page == "planning":
 
         st.caption("Your schedule is generated around your rest window, existing commitments, task priorities, and due dates.")
 
-        render_html("""
+        legend_cols = st.columns(5)
 
-<div class="legend-wrap">
+        legend_items = [
 
-    <div class="legend-tag legend-high">High Priority</div>
+            ("High Priority", COLORS["high"]),
 
-    <div class="legend-tag legend-medium">Medium Priority</div>
+            ("Medium Priority", COLORS["medium"]),
 
-    <div class="legend-tag legend-low">Low Priority</div>
+            ("Low Priority", COLORS["low"]),
 
-    <div class="legend-tag legend-sleep">Sleep</div>
+            ("Sleep", COLORS["sleep"]),
 
-    <div class="legend-tag legend-commitment">Fixed Commitment</div>
+            ("Fixed Commitment", COLORS["commitment"])
 
-</div>
+        ]
 
-""")
+        for col, (label, bg) in zip(legend_cols, legend_items):
+
+            with col:
+
+                st.markdown(
+
+                    f"""
+
+                    <div style="
+
+                        background:{bg};
+
+                        border:1px solid #DDEAE1;
+
+                        border-radius:999px;
+
+                        padding:6px 10px;
+
+                        text-align:center;
+
+                        font-size:12px;
+
+                        font-weight:700;
+
+                        color:{COLORS["text"]};
+
+                    ">
+
+                        {label}
+
+                    </div>
+
+                    """,
+
+                    unsafe_allow_html=True
+
+                )
+
+        st.markdown("<br>", unsafe_allow_html=True)
 
         for d in DAYS:
 
@@ -1514,11 +1512,39 @@ if st.session_state.page == "planning":
 
             load_label = get_day_load_label(day_task_hours)
 
-            render_html(f"""
+            st.markdown(
 
-<div class="clean-pill" style="background:{load_bg}; color:{COLORS['text']};">{load_label}</div>
+                f"""
 
-""")
+                <div style="
+
+                    display:inline-block;
+
+                    background:{load_bg};
+
+                    color:{COLORS["text"]};
+
+                    padding:6px 12px;
+
+                    border-radius:999px;
+
+                    font-size:12px;
+
+                    font-weight:700;
+
+                    margin-bottom:12px;
+
+                ">
+
+                    {load_label}
+
+                </div>
+
+                """,
+
+                unsafe_allow_html=True
+
+            )
 
             if st.session_state.schedule[d]:
 
@@ -1538,35 +1564,31 @@ if st.session_state.page == "planning":
 
                         note = f"Task • {item['priority']} priority • Due {format_date(item['due_date'])}"
 
-                    # Native Streamlit container so it does not print raw HTML
-
                     with st.container(border=True):
-
-                        st.markdown(f"**{item['label']}**")
-
-                        st.caption(f"{float_to_time(item['start'])} → {float_to_time(item['end'])}")
-
-                        st.caption(note)
 
                         st.markdown(
 
                             f"""
 
-<div style="
+                            <div style="
 
-    height:10px;
+                                background:{bg};
 
-    width:100%;
+                                border-left:8px solid {border};
 
-    background:{bg};
+                                padding:14px;
 
-    border-left:8px solid {border};
+                                border-radius:10px;
 
-    border-radius:999px;
+                            ">
 
-    margin-top:4px;
+                                <div style="font-weight:700; color:{COLORS['text']};">{item['label']}</div>
 
-"></div>
+                                <div style="margin-top:4px; color:{COLORS['muted']};">{float_to_time(item['start'])} → {float_to_time(item['end'])}</div>
+
+                                <div style="margin-top:6px; font-size:13px; color:{COLORS['muted']};">{note}</div>
+
+                            </div>
 
                             """,
 
